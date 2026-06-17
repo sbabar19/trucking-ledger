@@ -1,8 +1,12 @@
-import { useState } from "react";
 import "./App.css";
 
 function App() {
-  return <></>;
+  return (
+    <main>
+      <h1>Trucking Ledger</h1>
+      <p>Trip planning and log-sheet tools are coming soon.</p>
+    </main>
+  );
 }
 
 export default App;
