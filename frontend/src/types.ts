@@ -2,6 +2,15 @@ export type DutyStatus = 'off_duty' | 'sleeper_berth' | 'driving' | 'on_duty';
 
 export type Coordinates = [number, number];
 
+export type LocationFieldKey = 'current_location' | 'pickup_location' | 'dropoff_location';
+
+export interface LocationSelection {
+  label: string;
+  coordinates: Coordinates | null;
+}
+
+export type LocationSelectionMap = Record<LocationFieldKey, LocationSelection>;
+
 export type ScheduleStopType = 'pickup' | 'dropoff' | 'fuel' | 'rest' | 'restart';
 
 export interface TripPlanRequest {
@@ -9,6 +18,9 @@ export interface TripPlanRequest {
   pickup_location: string;
   dropoff_location: string;
   current_cycle_used: number;
+  current_coordinates?: Coordinates;
+  pickup_coordinates?: Coordinates;
+  dropoff_coordinates?: Coordinates;
 }
 
 export interface RouteInstruction {

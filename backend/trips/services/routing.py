@@ -12,7 +12,13 @@ class RoutingError(Exception):
     pass
 
 
-def geocode_location(location: str) -> dict:
+def geocode_location(location: str, coordinates: list[float] | None = None) -> dict:
+    if _is_coordinate_pair(coordinates):
+        return {
+            'location': location,
+            'coordinates': [float(coordinates[0]), float(coordinates[1])],
+        }
+
     token = _get_access_token()
     try:
         response = requests.get(
@@ -46,11 +52,18 @@ def geocode_location(location: str) -> dict:
     }
 
 
-def get_route(current_location: str, pickup_location: str, dropoff_location: str) -> dict:
+def get_route(
+    current_location: str,
+    pickup_location: str,
+    dropoff_location: str,
+    current_coordinates: list[float] | None = None,
+    pickup_coordinates: list[float] | None = None,
+    dropoff_coordinates: list[float] | None = None,
+) -> dict:
     waypoints = [
-        {'label': 'Current', **geocode_location(current_location)},
-        {'label': 'Pickup', **geocode_location(pickup_location)},
-        {'label': 'Dropoff', **geocode_location(dropoff_location)},
+        {'label': 'Current', **geocode_location(current_location, current_coordinates)},
+        {'label': 'Pickup', **geocode_location(pickup_location, pickup_coordinates)},
+        {'label': 'Dropoff', **geocode_location(dropoff_location, dropoff_coordinates)},
     ]
     coordinate_path = ';'.join(
         f'{waypoint["coordinates"][0]},{waypoint["coordinates"][1]}'

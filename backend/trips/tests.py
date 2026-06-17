@@ -12,6 +12,13 @@ VALID_REQUEST = {
     'current_cycle_used': 12.5,
 }
 
+VALID_REQUEST_WITH_COORDINATES = {
+    **VALID_REQUEST,
+    'current_coordinates': [-96.797, 32.7767],
+    'pickup_coordinates': [-112.074, 33.4484],
+    'dropoff_coordinates': [-118.2437, 34.0522],
+}
+
 MOCK_ROUTE = {
     'distance_miles': 1234.5,
     'duration_hours': 22.1,
@@ -139,4 +146,18 @@ class TripPlanAPITests(TestCase):
         self.assertTrue(payload['schedule']['events'])
         self.assertTrue(payload['schedule']['days'])
         self.assertTrue(payload['schedule']['days'][0]['segments'])
-        mock_get_route.assert_called_once_with('Dallas, TX', 'Phoenix, AZ', 'Los Angeles, CA')
+        mock_get_route.assert_called_once_with('Dallas, TX', 'Phoenix, AZ', 'Los Angeles, CA', None, None, None)
+
+    @patch('trips.views.get_route', return_value=MOCK_ROUTE)
+    def test_coordinates_are_forwarded_to_route_lookup(self, mock_get_route):
+        response = self.client.post('/api/trips/plan/', data=VALID_REQUEST_WITH_COORDINATES, content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        mock_get_route.assert_called_once_with(
+            'Dallas, TX',
+            'Phoenix, AZ',
+            'Los Angeles, CA',
+            [-96.797, 32.7767],
+            [-112.074, 33.4484],
+            [-118.2437, 34.0522],
+        )

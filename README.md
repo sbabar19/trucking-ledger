@@ -5,6 +5,7 @@ Trucking Ledger is a Django + React trip planner for dispatchers and drivers. It
 ## Features
 
 - Trip form for origin, pickup, dropoff, and cycle usage
+- Frontend Mapbox autocomplete and click-to-pick locations
 - Route map with fallback when the public Mapbox token is missing
 - Turn-by-turn route instructions and stop summaries
 - Daily log sheets and HOS schedule recap
@@ -48,7 +49,7 @@ Runtime backend variables:
 
 Frontend build-time variables:
 
-- `VITE_MAPBOX_TOKEN`
+- `VITE_MAPBOX_TOKEN` powers frontend geocoding, map picking, and the route map
 - `VITE_API_BASE_URL` should stay empty for the default same-origin deployment.
 
 ## Verification

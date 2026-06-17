@@ -18,6 +18,9 @@ def plan_trip(request):
             data['current_location'],
             data['pickup_location'],
             data['dropoff_location'],
+            data.get('current_coordinates'),
+            data.get('pickup_coordinates'),
+            data.get('dropoff_coordinates'),
         )
     except RoutingError as exc:
         status_code = status.HTTP_503_SERVICE_UNAVAILABLE if 'MAPBOX_ACCESS_TOKEN' in str(exc) else status.HTTP_502_BAD_GATEWAY

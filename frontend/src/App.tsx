@@ -2,44 +2,59 @@ import { useState, type FormEvent } from 'react';
 import './App.css';
 import { planTrip } from './api';
 import { LogSheet } from './components/LogSheet';
+import { LocationInput } from './components/LocationInput';
 import { MapPanel } from './components/MapPanel';
 import { Timeline } from './components/Timeline';
-import type { TripPlanRequest, TripPlanResponse } from './types';
+import { reverseGeocodeLocation, type LocationSuggestion } from './lib/mapboxGeocoding';
+import type { Coordinates, LocationFieldKey, LocationSelectionMap, TripPlanRequest, TripPlanResponse } from './types';
 
-interface PlannerFormState {
-  current_location: string;
-  pickup_location: string;
-  dropoff_location: string;
-  current_cycle_used: string;
+interface PlannerLocationState {
+  value: string;
+  coordinates: Coordinates | null;
 }
 
-const DEFAULT_FORM: PlannerFormState = {
-  current_location: 'Dallas, TX',
-  pickup_location: 'Phoenix, AZ',
-  dropoff_location: 'Los Angeles, CA',
-  current_cycle_used: '12',
+type PlannerLocations = Record<LocationFieldKey, PlannerLocationState>;
+
+const DEFAULT_LOCATIONS: PlannerLocations = {
+  current_location: { value: 'Dallas, TX', coordinates: null },
+  pickup_location: { value: 'Phoenix, AZ', coordinates: null },
+  dropoff_location: { value: 'Los Angeles, CA', coordinates: null },
 };
 
+const FIELD_LABELS: Record<LocationFieldKey, string> = {
+  current_location: 'Current location',
+  pickup_location: 'Pickup location',
+  dropoff_location: 'Dropoff location',
+};
+
+const DEFAULT_CYCLE_USED = '12';
+
 function App() {
-  const [form, setForm] = useState<PlannerFormState>(DEFAULT_FORM);
+  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+  const [locations, setLocations] = useState<PlannerLocations>(DEFAULT_LOCATIONS);
+  const [currentCycleUsed, setCurrentCycleUsed] = useState(DEFAULT_CYCLE_USED);
   const [result, setResult] = useState<TripPlanResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [activeField, setActiveField] = useState<LocationFieldKey>('current_location');
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const validationMessage = validateForm(form);
+    const validationMessage = validateForm(locations, currentCycleUsed);
     if (validationMessage) {
       setErrorMessage(validationMessage);
       return;
     }
 
     const request: TripPlanRequest = {
-      current_location: form.current_location.trim(),
-      pickup_location: form.pickup_location.trim(),
-      dropoff_location: form.dropoff_location.trim(),
-      current_cycle_used: Number(form.current_cycle_used),
+      current_location: locations.current_location.value.trim(),
+      pickup_location: locations.pickup_location.value.trim(),
+      dropoff_location: locations.dropoff_location.value.trim(),
+      current_cycle_used: Number(currentCycleUsed),
+      ...(locations.current_location.coordinates ? { current_coordinates: locations.current_location.coordinates } : {}),
+      ...(locations.pickup_location.coordinates ? { pickup_coordinates: locations.pickup_location.coordinates } : {}),
+      ...(locations.dropoff_location.coordinates ? { dropoff_coordinates: locations.dropoff_location.coordinates } : {}),
     };
 
     setIsLoading(true);
@@ -54,74 +69,114 @@ function App() {
     }
   };
 
+  const updateLocation = (field: LocationFieldKey, value: string, coordinates: Coordinates | null) => {
+    setLocations((previousLocations) => ({
+      ...previousLocations,
+      [field]: { value, coordinates },
+    }));
+  };
+
+  const handleSuggestionSelect = (field: LocationFieldKey, suggestion: LocationSuggestion) => {
+    updateLocation(field, suggestion.label, suggestion.coordinates);
+    setErrorMessage('');
+  };
+
+  const handleMapClick = async (coordinates: Coordinates) => {
+    if (!mapboxToken) {
+      return;
+    }
+
+    try {
+      const suggestion = await reverseGeocodeLocation(coordinates, mapboxToken);
+      updateLocation(
+        activeField,
+        suggestion?.label ?? `${FIELD_LABELS[activeField]} (${formatCoordinatePair(coordinates)})`,
+        coordinates,
+      );
+      setErrorMessage('');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Could not resolve the selected map location');
+    }
+  };
+
   const lastLogDay = result?.schedule.days.at(-1);
   const cycleUsed = lastLogDay?.recap.cycle_used_end ?? null;
   const cycleRemaining = lastLogDay?.recap.cycle_available_end ?? null;
+  const locationSummary: LocationSelectionMap = {
+    current_location: {
+      label: locations.current_location.value,
+      coordinates: locations.current_location.coordinates,
+    },
+    pickup_location: {
+      label: locations.pickup_location.value,
+      coordinates: locations.pickup_location.coordinates,
+    },
+    dropoff_location: {
+      label: locations.dropoff_location.value,
+      coordinates: locations.dropoff_location.coordinates,
+    },
+  };
 
   return (
     <main className="planner-shell">
-      <section className="hero-panel" aria-labelledby="app-title">
-        <div>
-          <p className="eyebrow">Dispatch planning command center</p>
-          <h1 id="app-title">Trucking Ledger</h1>
-          <p className="hero-copy">
-            Plan a compliant trip, inspect route instructions, and review filled daily logs from the backend HOS schedule.
-          </p>
-        </div>
-        <div className="hero-metrics" aria-label="Planning capabilities">
-          <span>70 hr / 8 day cycle</span>
-          <span>Live route schedule</span>
-          <span>Printable log sheets</span>
-        </div>
-      </section>
-
-      <div className="workspace-grid">
-        <aside className="planner-card input-card" aria-label="Trip planner input">
+      <section className="route-builder-grid" aria-label="Trip planner input">
+        <div className="planner-card input-card">
           <div className="card-header">
-            <p className="section-kicker">Trip request</p>
-            <h2>Route inputs</h2>
+            <div>
+              <p className="section-kicker">Trucking Ledger</p>
+              <h2>Route inputs</h2>
+            </div>
+            <span className="status-pill status-pill-cyan">70 hr / 8 day cycle</span>
           </div>
 
           <form className="trip-form" onSubmit={handleSubmit} noValidate>
-            <label>
-              Current location
-              <input
-                value={form.current_location}
-                onChange={(event) => setForm({ ...form, current_location: event.target.value })}
-                placeholder="Dallas, TX"
-                autoComplete="address-level2"
+            <div className="route-input-row">
+              <LocationInput
+                id="current_location"
+                label="Current location"
+                value={locations.current_location.value}
+                coordinates={locations.current_location.coordinates}
+                accessToken={mapboxToken}
+                isActive={activeField === 'current_location'}
+                onActivate={() => setActiveField('current_location')}
+                onChange={(value) => updateLocation('current_location', value, null)}
+                onSelectSuggestion={(suggestion) => handleSuggestionSelect('current_location', suggestion)}
               />
-            </label>
 
-            <label>
-              Pickup location
-              <input
-                value={form.pickup_location}
-                onChange={(event) => setForm({ ...form, pickup_location: event.target.value })}
-                placeholder="Phoenix, AZ"
-                autoComplete="address-level2"
+              <LocationInput
+                id="pickup_location"
+                label="Pickup location"
+                value={locations.pickup_location.value}
+                coordinates={locations.pickup_location.coordinates}
+                accessToken={mapboxToken}
+                isActive={activeField === 'pickup_location'}
+                onActivate={() => setActiveField('pickup_location')}
+                onChange={(value) => updateLocation('pickup_location', value, null)}
+                onSelectSuggestion={(suggestion) => handleSuggestionSelect('pickup_location', suggestion)}
               />
-            </label>
 
-            <label>
-              Dropoff location
-              <input
-                value={form.dropoff_location}
-                onChange={(event) => setForm({ ...form, dropoff_location: event.target.value })}
-                placeholder="Los Angeles, CA"
-                autoComplete="address-level2"
+              <LocationInput
+                id="dropoff_location"
+                label="Dropoff location"
+                value={locations.dropoff_location.value}
+                coordinates={locations.dropoff_location.coordinates}
+                accessToken={mapboxToken}
+                isActive={activeField === 'dropoff_location'}
+                onActivate={() => setActiveField('dropoff_location')}
+                onChange={(value) => updateLocation('dropoff_location', value, null)}
+                onSelectSuggestion={(suggestion) => handleSuggestionSelect('dropoff_location', suggestion)}
               />
-            </label>
 
-            <label>
-              Current cycle used
-              <input
-                value={form.current_cycle_used}
-                onChange={(event) => setForm({ ...form, current_cycle_used: event.target.value })}
-                placeholder="12"
-                inputMode="decimal"
-              />
-            </label>
+              <label>
+                Current cycle used
+                <input
+                  value={currentCycleUsed}
+                  onChange={(event) => setCurrentCycleUsed(event.target.value)}
+                  placeholder="12"
+                  inputMode="decimal"
+                />
+              </label>
+            </div>
 
             {errorMessage ? <p className="form-error" role="alert">{errorMessage}</p> : null}
 
@@ -129,8 +184,18 @@ function App() {
               {isLoading ? 'Planning route...' : 'Plan compliant trip'}
             </button>
           </form>
-        </aside>
+        </div>
 
+        <MapPanel
+          activeField={activeField}
+          locations={locationSummary}
+          route={result?.route}
+          onActivateField={setActiveField}
+          onMapClick={handleMapClick}
+        />
+      </section>
+
+      {(result || isLoading) ? (
         <section className="results-stack" aria-live="polite">
           <div className="planner-card summary-card">
             <div className="card-header">
@@ -167,7 +232,6 @@ function App() {
 
           {result ? (
             <>
-              <MapPanel route={result.route} />
               <Timeline instructions={result.route.instructions} stops={result.schedule.stops} />
               <section className="planner-card logs-card" aria-label="Daily log sheets">
                 <div className="card-header">
@@ -181,15 +245,9 @@ function App() {
                 </div>
               </section>
             </>
-          ) : (
-            <div className="planner-card empty-state">
-              <span>TL</span>
-              <h2>Submit a route to generate dispatch artifacts</h2>
-              <p>The planner will return route geometry, instructions, scheduled stops, rest breaks, and printable logs.</p>
-            </div>
-          )}
+          ) : null}
         </section>
-      </div>
+      ) : null}
     </main>
   );
 }
@@ -208,12 +266,12 @@ function Metric({ label, value }: MetricProps) {
   );
 }
 
-function validateForm(form: PlannerFormState): string {
-  if (!form.current_location.trim() || !form.pickup_location.trim() || !form.dropoff_location.trim()) {
+function validateForm(locations: PlannerLocations, currentCycleUsed: string): string {
+  if (!locations.current_location.value.trim() || !locations.pickup_location.value.trim() || !locations.dropoff_location.value.trim()) {
     return 'Current, pickup, and dropoff locations are required.';
   }
 
-  const cycleUsed = Number(form.current_cycle_used);
+  const cycleUsed = Number(currentCycleUsed);
   if (!Number.isFinite(cycleUsed) || cycleUsed < 0 || cycleUsed > 70) {
     return 'Current cycle used must be a number between 0 and 70.';
   }
@@ -227,6 +285,10 @@ function formatNumber(value: number): string {
 
 function formatHours(value: number): string {
   return `${formatNumber(value)} hr`;
+}
+
+function formatCoordinatePair(coordinates: Coordinates): string {
+  return `${coordinates[1].toFixed(4)}, ${coordinates[0].toFixed(4)}`;
 }
 
 export default App;
