@@ -1,6 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
-import type { Coordinates } from '../types';
-import { searchLocationSuggestions, type LocationSuggestion } from '../lib/mapboxGeocoding';
+import { Badge } from "@/components/ui/badge";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  searchLocationSuggestions,
+  type LocationSuggestion,
+} from "@/lib/mapboxGeocoding";
+import type { Coordinates } from "@/types";
+import { useEffect, useRef, useState } from "react";
 
 interface LocationInputProps {
   id: string;
@@ -28,10 +40,11 @@ export function LocationInput({
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState('');
+  const [searchError, setSearchError] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const blurTimeout = useRef<number | null>(null);
-  const canSearch = isFocused && Boolean(accessToken) && value.trim().length >= 3;
+  const canSearch =
+    isFocused && Boolean(accessToken) && value.trim().length >= 3;
 
   useEffect(() => {
     if (!canSearch || !accessToken) {
@@ -45,7 +58,7 @@ export function LocationInput({
       searchLocationSuggestions(value, accessToken, controller.signal)
         .then((results) => {
           setSuggestions(results);
-          setSearchError('');
+          setSearchError("");
           setIsOpen(true);
         })
         .catch((error) => {
@@ -54,7 +67,11 @@ export function LocationInput({
           }
 
           setSuggestions([]);
-          setSearchError(error instanceof Error ? error.message : 'Location suggestions are unavailable');
+          setSearchError(
+            error instanceof Error
+              ? error.message
+              : "Location suggestions are unavailable",
+          );
         })
         .finally(() => {
           if (!controller.signal.aborted) {
@@ -69,22 +86,36 @@ export function LocationInput({
     };
   }, [accessToken, canSearch, value]);
 
-  useEffect(() => () => {
-    if (blurTimeout.current !== null) {
-      window.clearTimeout(blurTimeout.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (blurTimeout.current !== null) {
+        window.clearTimeout(blurTimeout.current);
+      }
+    },
+    [],
+  );
 
-  const statusText = coordinates ? formatCoordinates(coordinates) : isActive ? 'Ready for map pick' : 'Type to search';
-  const showSuggestions = canSearch && isOpen && (suggestions.length > 0 || isSearching || Boolean(searchError));
+  const statusText = coordinates
+    ? formatCoordinates(coordinates)
+    : isActive
+      ? "Ready for map pick"
+      : "Type to search";
+  const showSuggestions =
+    canSearch &&
+    isOpen &&
+    (suggestions.length > 0 || isSearching || Boolean(searchError));
 
   return (
-    <div className="location-input-wrap">
-      <label className="location-input-label" htmlFor={id}>
-        <span>{label}</span>
-        <span className={coordinates ? 'location-status location-status-ready' : 'location-status'}>{statusText}</span>
-      </label>
-      <input
+    <Field className="relative">
+      <FieldContent>
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <Badge variant={coordinates ? "default" : "secondary"}>
+            {statusText}
+          </Badge>
+        </div>
+      </FieldContent>
+      <Input
         id={id}
         value={value}
         onFocus={() => {
@@ -104,7 +135,7 @@ export function LocationInput({
           if (nextValue.trim().length < 3) {
             setSuggestions([]);
             setIsSearching(false);
-            setSearchError('');
+            setSearchError("");
           }
           setIsOpen(true);
         }}
@@ -112,33 +143,49 @@ export function LocationInput({
         autoComplete="off"
         spellCheck={false}
         aria-autocomplete="list"
-        aria-expanded={showSuggestions ? 'true' : 'false'}
+        aria-expanded={showSuggestions ? "true" : "false"}
         aria-controls={`${id}-suggestions`}
       />
       {showSuggestions ? (
-        <div className="location-suggestions" id={`${id}-suggestions`} role="listbox">
-          {isSearching ? <div className="location-suggestion-hint">Searching Mapbox...</div> : null}
-          {searchError ? <div className="location-suggestion-hint location-suggestion-error">{searchError}</div> : null}
-          {suggestions.map((suggestion) => (
-            <button
-              key={`${suggestion.label}-${suggestion.coordinates[0]}-${suggestion.coordinates[1]}`}
-              type="button"
-              className="location-suggestion-item"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                onSelectSuggestion(suggestion);
-                setIsFocused(false);
-                setIsOpen(false);
-                setSuggestions([]);
-              }}
-            >
-              <strong>{suggestion.label}</strong>
-              <span>{suggestion.subtitle}</span>
-            </button>
-          ))}
-        </div>
+        <ScrollArea
+          className="absolute top-full z-10 mt-2 max-h-64 w-full rounded-xl border bg-popover p-2 shadow-md"
+          id={`${id}-suggestions`}
+          role="listbox"
+        >
+          <div className="flex flex-col gap-1">
+            {isSearching ? (
+              <FieldDescription className="px-3 py-2">
+                Searching Mapbox...
+              </FieldDescription>
+            ) : null}
+            {searchError ? (
+              <FieldDescription className="px-3 py-2 text-destructive">
+                {searchError}
+              </FieldDescription>
+            ) : null}
+            {suggestions.map((suggestion) => (
+              <button
+                key={`${suggestion.label}-${suggestion.coordinates[0]}-${suggestion.coordinates[1]}`}
+                type="button"
+                className="rounded-lg px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onSelectSuggestion(suggestion);
+                  setIsFocused(false);
+                  setIsOpen(false);
+                  setSuggestions([]);
+                }}
+              >
+                <span className="block font-medium">{suggestion.label}</span>
+                <span className="block text-muted-foreground">
+                  {suggestion.subtitle}
+                </span>
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
       ) : null}
-    </div>
+    </Field>
   );
 }
 

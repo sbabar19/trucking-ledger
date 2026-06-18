@@ -1,4 +1,4 @@
-import type { Coordinates } from '../types';
+import type { Coordinates } from '@/types';
 
 const GEOCODING_FORWARD_URL = 'https://api.mapbox.com/search/geocode/v6/forward';
 const GEOCODING_REVERSE_URL = 'https://api.mapbox.com/search/geocode/v6/reverse';

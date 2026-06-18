@@ -1,4 +1,4 @@
-import type { TripPlanRequest, TripPlanResponse } from './types';
+import type { TripPlanRequest, TripPlanResponse } from '@/types';
 
 export async function planTrip(input: TripPlanRequest): Promise<TripPlanResponse> {
   const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ''}/api/trips/plan/`, {
