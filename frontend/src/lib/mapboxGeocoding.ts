@@ -1,7 +1,6 @@
 import type { Coordinates } from '@/types';
 
 const GEOCODING_FORWARD_URL = 'https://api.mapbox.com/search/geocode/v6/forward';
-const GEOCODING_REVERSE_URL = 'https://api.mapbox.com/search/geocode/v6/reverse';
 const SEARCH_TYPES = 'address,street,place,locality,postcode,region';
 
 export interface LocationSuggestion {
@@ -46,26 +45,6 @@ export async function searchLocationSuggestions(query: string, accessToken: stri
   return (payload.features ?? [])
     .map((feature) => featureToSuggestion(feature))
     .filter((suggestion): suggestion is LocationSuggestion => suggestion !== null);
-}
-
-export async function reverseGeocodeLocation(coordinates: Coordinates, accessToken: string, signal?: AbortSignal): Promise<LocationSuggestion | null> {
-  const searchParams = new URLSearchParams({
-    longitude: String(coordinates[0]),
-    latitude: String(coordinates[1]),
-    access_token: accessToken,
-    language: 'en',
-    limit: '1',
-    types: SEARCH_TYPES,
-  });
-
-  const response = await fetch(`${GEOCODING_REVERSE_URL}?${searchParams.toString()}`, { signal });
-  if (!response.ok) {
-    throw new Error('Reverse geocoding failed');
-  }
-
-  const payload = (await response.json()) as MapboxFeatureCollection;
-  const firstFeature = payload.features?.[0];
-  return firstFeature ? featureToSuggestion(firstFeature) : null;
 }
 
 function featureToSuggestion(feature: MapboxFeature): LocationSuggestion | null {

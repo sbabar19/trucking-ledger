@@ -13,7 +13,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type {
   Coordinates,
   LocationFieldKey,
@@ -22,30 +21,26 @@ import type {
   TripPlanResponse,
 } from "@/types";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { useEffect, useMemo, useRef } from "react";
 import type { LayerProps } from "react-map-gl/mapbox";
 import {
   Layer,
   Map,
+  type MapRef,
   Marker,
   NavigationControl,
   Source,
 } from "react-map-gl/mapbox";
 
 interface MapPanelProps {
-  activeField: LocationFieldKey;
   locations: LocationSelectionMap;
   route?: TripPlanResponse["route"];
-  onActivateField: (field: LocationFieldKey) => void;
-  onMapClick: (coordinates: Coordinates) => void;
 }
 
-const fieldConfig: Record<
-  LocationFieldKey,
-  { label: string; className: string }
-> = {
-  current_location: { label: "Current", className: "waypoint-current" },
-  pickup_location: { label: "Pickup", className: "waypoint-pickup" },
-  dropoff_location: { label: "Dropoff", className: "waypoint-dropoff" },
+const fieldLabels: Record<LocationFieldKey, string> = {
+  current_location: "Current",
+  pickup_location: "Pickup",
+  dropoff_location: "Dropoff",
 };
 
 const routeLineLayer: LayerProps = {
@@ -62,30 +57,59 @@ const routeLineLayer: LayerProps = {
   },
 };
 
-export function MapPanel({
-  activeField,
-  locations,
-  route,
-  onActivateField,
-  onMapClick,
-}: MapPanelProps) {
+export function MapPanel({ locations, route }: MapPanelProps) {
+  const mapRef = useRef<MapRef>(null);
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
-  const routeCoordinates = route?.geometry.coordinates ?? [];
-  const selectedCoordinates = Object.values(locations)
-    .map((location) => location.coordinates)
-    .filter((coordinates): coordinates is Coordinates => coordinates !== null);
-  const bounds = getBounds(
-    routeCoordinates.length ? routeCoordinates : selectedCoordinates,
+  const routeCoordinates = useMemo(
+    () => route?.geometry.coordinates ?? [],
+    [route?.geometry.coordinates],
   );
-  const center = getCenter(selectedCoordinates);
-  const routeFeature = route
-    ? {
-        type: "Feature" as const,
-        geometry: route.geometry,
-        properties: {},
-      }
-    : null;
-  const mapKey = `${route ? "route" : "draft"}:${activeField}:${selectedCoordinates.map((coordinate) => coordinate.join(",")).join("|")}`;
+  const selectedCoordinates = useMemo(
+    () =>
+      Object.values(locations)
+        .map((location) => location.coordinates)
+        .filter(
+          (coordinates): coordinates is Coordinates => coordinates !== null,
+        ),
+    [locations],
+  );
+  const cameraCoordinates = routeCoordinates.length
+    ? routeCoordinates
+    : selectedCoordinates;
+  const routeFeature = useMemo(
+    () =>
+      route
+        ? {
+            type: "Feature" as const,
+            geometry: route.geometry,
+            properties: {},
+          }
+        : null,
+    [route],
+  );
+  const cameraKey = cameraCoordinates
+    .map((coordinate) => coordinate.join(","))
+    .join("|");
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !cameraCoordinates.length) {
+      return;
+    }
+
+    const bounds = getBounds(cameraCoordinates);
+    if (!bounds) {
+      return;
+    }
+
+    if (cameraCoordinates.length === 1) {
+      const [longitude, latitude] = cameraCoordinates[0];
+      map.easeTo({ center: [longitude, latitude], zoom: 8, duration: 500 });
+      return;
+    }
+
+    map.fitBounds(bounds, { padding: 70, maxZoom: 12, duration: 500 });
+  }, [cameraCoordinates, cameraKey]);
 
   if (!mapboxToken) {
     return <MapFallback route={route} />;
@@ -95,51 +119,26 @@ export function MapPanel({
     <Card className="print:hidden" aria-label="Route map">
       <CardHeader>
         <CardDescription>Route map</CardDescription>
-        <CardTitle>
-          {route ? "Live route map" : "Place locations on the map"}
-        </CardTitle>
+        <CardTitle>{route ? "Live route map" : "Selected locations"}</CardTitle>
         <CardAction>
-          <Badge>{fieldConfig[activeField].label}</Badge>
+          <Badge variant="secondary">
+            {selectedCoordinates.length} selected
+          </Badge>
         </CardAction>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          value={activeField}
-          onValueChange={(field) => {
-            if (field) {
-              onActivateField(field as LocationFieldKey);
-            }
-          }}
-          aria-label="Map location target"
-        >
-          {Object.entries(fieldConfig).map(([field, config]) => (
-            <ToggleGroupItem key={field} value={field}>
-              {config.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-
         <div className="h-[min(58vh,560px)] min-h-[360px] overflow-hidden rounded-xl bg-muted max-[900px]:min-h-[310px] max-[560px]:min-h-[280px]">
           <Map
-            key={mapKey}
-            initialViewState={
-              bounds
-                ? { bounds, fitBoundsOptions: { padding: 70, maxZoom: 12 } }
-                : {
-                    longitude: center?.[0] ?? -98.5795,
-                    latitude: center?.[1] ?? 39.8283,
-                    zoom: 3.2,
-                  }
-            }
+            ref={mapRef}
+            initialViewState={{
+              longitude: -98.5795,
+              latitude: 39.8283,
+              zoom: 3.2,
+            }}
             mapboxAccessToken={mapboxToken}
             mapStyle="mapbox://styles/mapbox/navigation-night-v1"
             style={{ width: "100%", height: "100%" }}
-            onClick={(event) =>
-              onMapClick([event.lngLat.lng, event.lngLat.lat])
-            }
           >
             <NavigationControl position="top-right" />
             {routeFeature ? (
@@ -166,23 +165,12 @@ export function MapPanel({
                       latitude={location.coordinates[1]}
                       anchor="bottom"
                     >
-                      <div
-                        className={`draft-waypoint-marker ${fieldConfig[field as LocationFieldKey].className}`}
-                      >
-                        <span>
-                          {fieldConfig[field as LocationFieldKey].label}
-                        </span>
-                      </div>
+                      <Badge>{fieldLabels[field as LocationFieldKey]}</Badge>
                     </Marker>
                   ) : null,
                 )}
           </Map>
         </div>
-
-        <CardDescription>
-          Click the map to fill the highlighted field. Once the trip is planned,
-          this same map shows the route.
-        </CardDescription>
       </CardContent>
     </Card>
   );
@@ -196,9 +184,8 @@ function MapFallback({ route }: Pick<MapPanelProps, "route">) {
           <EmptyHeader>
             <EmptyTitle>Map token not configured</EmptyTitle>
             <EmptyDescription>
-              Add a public <code>VITE_MAPBOX_TOKEN</code> to enable
-              click-to-pick locations, autocomplete, and the interactive route
-              map.
+              Add a public <code>VITE_MAPBOX_TOKEN</code> to enable autocomplete
+              markers and the interactive route map.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -231,11 +218,7 @@ function MapFallback({ route }: Pick<MapPanelProps, "route">) {
 }
 
 function WaypointMarker({ waypoint }: { waypoint: RouteWaypoint }) {
-  return (
-    <div className="waypoint-marker">
-      <span>{waypoint.label}</span>
-    </div>
-  );
+  return <Badge>{waypoint.label}</Badge>;
 }
 
 function getBounds(
@@ -253,20 +236,6 @@ function getBounds(
     Math.max(...longitudes),
     Math.max(...latitudes),
   ];
-}
-
-function getCenter(coordinates: Coordinates[]): Coordinates | null {
-  if (!coordinates.length) {
-    return null;
-  }
-
-  const longitude =
-    coordinates.reduce((sum, coordinate) => sum + coordinate[0], 0) /
-    coordinates.length;
-  const latitude =
-    coordinates.reduce((sum, coordinate) => sum + coordinate[1], 0) /
-    coordinates.length;
-  return [longitude, latitude];
 }
 
 function formatNumber(value: number): string {

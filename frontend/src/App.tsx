@@ -1,5 +1,6 @@
-import { planTrip } from "@/api";
 import "@/App.css";
+
+import { planTrip } from "@/api";
 import { LocationInput } from "@/components/LocationInput";
 import { LogSheet } from "@/components/LogSheet";
 import { MapPanel } from "@/components/MapPanel";
@@ -20,10 +21,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  reverseGeocodeLocation,
-  type LocationSuggestion,
-} from "@/lib/mapboxGeocoding";
+import type { LocationSuggestion } from "@/lib/mapboxGeocoding";
 import type {
   Coordinates,
   LocationFieldKey,
@@ -46,12 +44,6 @@ const DEFAULT_LOCATIONS: PlannerLocations = {
   dropoff_location: { value: "Los Angeles, CA", coordinates: null },
 };
 
-const FIELD_LABELS: Record<LocationFieldKey, string> = {
-  current_location: "Current location",
-  pickup_location: "Pickup location",
-  dropoff_location: "Dropoff location",
-};
-
 const DEFAULT_CYCLE_USED = "12";
 
 function App() {
@@ -62,8 +54,6 @@ function App() {
   const [result, setResult] = useState<TripPlanResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [activeField, setActiveField] =
-    useState<LocationFieldKey>("current_location");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -123,29 +113,6 @@ function App() {
     setErrorMessage("");
   };
 
-  const handleMapClick = async (coordinates: Coordinates) => {
-    if (!mapboxToken) {
-      return;
-    }
-
-    try {
-      const suggestion = await reverseGeocodeLocation(coordinates, mapboxToken);
-      updateLocation(
-        activeField,
-        suggestion?.label ??
-          `${FIELD_LABELS[activeField]} (${formatCoordinatePair(coordinates)})`,
-        coordinates,
-      );
-      setErrorMessage("");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not resolve the selected map location",
-      );
-    }
-  };
-
   const lastLogDay = result?.schedule.days.at(-1);
   const cycleUsed = lastLogDay?.recap.cycle_used_end ?? null;
   const cycleRemaining = lastLogDay?.recap.cycle_available_end ?? null;
@@ -192,8 +159,6 @@ function App() {
                   value={locations.current_location.value}
                   coordinates={locations.current_location.coordinates}
                   accessToken={mapboxToken}
-                  isActive={activeField === "current_location"}
-                  onActivate={() => setActiveField("current_location")}
                   onChange={(value) =>
                     updateLocation("current_location", value, null)
                   }
@@ -208,8 +173,6 @@ function App() {
                   value={locations.pickup_location.value}
                   coordinates={locations.pickup_location.coordinates}
                   accessToken={mapboxToken}
-                  isActive={activeField === "pickup_location"}
-                  onActivate={() => setActiveField("pickup_location")}
                   onChange={(value) =>
                     updateLocation("pickup_location", value, null)
                   }
@@ -224,8 +187,6 @@ function App() {
                   value={locations.dropoff_location.value}
                   coordinates={locations.dropoff_location.coordinates}
                   accessToken={mapboxToken}
-                  isActive={activeField === "dropoff_location"}
-                  onActivate={() => setActiveField("dropoff_location")}
                   onChange={(value) =>
                     updateLocation("dropoff_location", value, null)
                   }
@@ -265,13 +226,7 @@ function App() {
           </CardContent>
         </Card>
 
-        <MapPanel
-          activeField={activeField}
-          locations={locationSummary}
-          route={result?.route}
-          onActivateField={setActiveField}
-          onMapClick={handleMapClick}
-        />
+        <MapPanel locations={locationSummary} route={result?.route} />
       </section>
 
       {result || isLoading ? (
@@ -435,10 +390,6 @@ function formatNumber(value: number): string {
 
 function formatHours(value: number): string {
   return `${formatNumber(value)} hr`;
-}
-
-function formatCoordinatePair(coordinates: Coordinates): string {
-  return `${coordinates[1].toFixed(4)}, ${coordinates[0].toFixed(4)}`;
 }
 
 export default App;

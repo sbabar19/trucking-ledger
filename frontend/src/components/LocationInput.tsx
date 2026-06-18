@@ -25,8 +25,6 @@ interface LocationInputProps {
   value: string;
   coordinates: Coordinates | null;
   accessToken?: string;
-  isActive: boolean;
-  onActivate: () => void;
   onChange: (value: string) => void;
   onSelectSuggestion: (suggestion: LocationSuggestion) => void;
 }
@@ -37,8 +35,6 @@ export function LocationInput({
   value,
   coordinates,
   accessToken,
-  isActive,
-  onActivate,
   onChange,
   onSelectSuggestion,
 }: LocationInputProps) {
@@ -102,9 +98,7 @@ export function LocationInput({
 
   const statusText = coordinates
     ? formatCoordinates(coordinates)
-    : isActive
-      ? "Ready for map pick"
-      : "Type to search";
+    : "Type to search";
   const showSuggestions =
     canSearch &&
     isOpen &&
@@ -128,7 +122,6 @@ export function LocationInput({
             onFocus={() => {
               setIsFocused(true);
               setIsOpen(true);
-              onActivate();
             }}
             onBlur={() => {
               blurTimeout.current = window.setTimeout(() => {
