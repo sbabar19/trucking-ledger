@@ -77,7 +77,10 @@
 }
 
 .metric-card {
-  background: linear-gradient(180deg, var(--card), color-mix(in oklch, var(--muted), var(--card) 62%));
+  background: linear-gradient(180deg, var(--card), color-mix(in oklch, var(--muted), var(--card) 58%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.78),
+    0 12px 26px -24px rgb(15 23 42 / 0.46);
 }
 
 .metric-card--success {
@@ -95,11 +98,14 @@
 .metric-label {
   color: var(--muted-foreground);
   font-weight: 750;
+  letter-spacing: 0.08em;
 }
 
 .metric-value {
   color: color-mix(in oklch, var(--foreground), oklch(0.21 0.034 264) 36%);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
 }
 
 .map-card-header {
@@ -328,15 +334,15 @@
 }
 
 .log-remarks-heading {
-  font-size: 22px;
-  font-weight: 850;
+  font-size: 16px;
+  font-weight: 800;
   letter-spacing: 0.02em;
 }
 
 .log-remark-location,
 .log-remark-purpose {
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .log-remark-purpose {
@@ -393,7 +399,7 @@
 .log-remark-leader {
   stroke-linecap: square;
   stroke-linejoin: miter;
-  stroke-width: 2.7;
+  stroke-width: 3.4;
 }
 
 .paper-log-lower {

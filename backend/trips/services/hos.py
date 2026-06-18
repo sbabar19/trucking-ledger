@@ -14,6 +14,7 @@ DRIVING_WINDOW_HOURS = 14.0
 BREAK_DRIVING_LIMIT_HOURS = 8.0
 THIRTY_MINUTE_BREAK_HOURS = 0.5
 TEN_HOUR_BREAK_HOURS = 10.0
+TEN_HOUR_BREAK_OFF_DUTY_HOURS = 1.5
 RESTART_HOURS = 34.0
 FUEL_INTERVAL_MILES = 1000.0
 FUEL_DURATION_HOURS = 0.25
@@ -201,8 +202,10 @@ def _insert_thirty_minute_break(events: list[DutyEvent], stops: list[dict], stat
 def _insert_ten_hour_break(events: list[DutyEvent], stops: list[dict], state: dict) -> None:
     start_hour = state['hour']
     end_hour = start_hour + TEN_HOUR_BREAK_HOURS
+    sleeper_start_hour = start_hour + TEN_HOUR_BREAK_OFF_DUTY_HOURS
     location = _route_location(state, 'break location')
-    _add_event(events, OFF_DUTY, start_hour, end_hour, 'Required 10-hour break', location)
+    _add_event(events, OFF_DUTY, start_hour, sleeper_start_hour, 'Required 10-hour break', location)
+    _add_event(events, SLEEPER_BERTH, sleeper_start_hour, end_hour, 'Sleeper berth rest', location)
     stops.append({
         'type': 'rest',
         'hour': _round_hour(start_hour),

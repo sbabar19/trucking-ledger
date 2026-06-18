@@ -28,7 +28,12 @@ import type {
   TripPlanRequest,
   TripPlanResponse,
 } from "@/types";
-import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PrinterIcon,
+} from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 interface PlannerLocationState {
@@ -113,6 +118,10 @@ function App() {
   ) => {
     updateLocation(field, suggestion.label, suggestion.coordinates);
     setErrorMessage("");
+  };
+
+  const handlePrintSelectedLogDay = () => {
+    window.print();
   };
 
   const lastLogDay = result?.schedule.days.at(-1);
@@ -370,6 +379,17 @@ function App() {
                       variant="outline"
                       size="icon"
                       className="size-9 rounded-full"
+                      aria-label={`Print day ${selectedLogDayIndex + 1} log`}
+                      disabled={!selectedLogDay}
+                      onClick={handlePrintSelectedLogDay}
+                    >
+                      <PrinterIcon />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-9 rounded-full"
                       disabled={selectedLogDayIndex >= logDayCount - 1}
                       aria-label="Next log day"
                       onClick={() =>
@@ -416,21 +436,20 @@ function Metric({
 }: MetricProps) {
   return (
     <Card
-      size="sm"
-      className={cn("metric-card min-h-32 rounded-2xl", {
+      className={cn("metric-card min-h-38 rounded-2xl", {
         "metric-card--success": tone === "success",
         "metric-card--warning": tone === "warning",
         "metric-card--danger": tone === "danger",
       })}
     >
-      <CardHeader>
-        <CardDescription className="metric-label text-xs uppercase tracking-[0.12em]">
+      <CardHeader className="h-full content-between gap-4">
+        <CardDescription className="metric-label text-xs uppercase">
           {label}
         </CardDescription>
         {isLoading ? (
-          <Skeleton className="h-7 w-24" />
+          <Skeleton className="h-12 w-32" />
         ) : (
-          <CardTitle className="metric-value text-4xl font-semibold tracking-[-0.06em] text-foreground lg:text-5xl">
+          <CardTitle className="metric-value text-[2.65rem] font-bold leading-none text-foreground lg:text-[3.35rem]">
             {value}
           </CardTitle>
         )}

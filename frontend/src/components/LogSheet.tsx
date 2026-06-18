@@ -18,10 +18,11 @@ const graphTop = 48;
 const rowHeight = 36;
 const graphBottom = graphTop + rowHeight * 4;
 const remarksAxisY = graphBottom + 28;
-const remarksStemTop = remarksAxisY + 24;
-const remarksStemBottom = remarksStemTop + 36;
-const remarksTextY = remarksAxisY + 140;
-const svgHeight = remarksTextY + 86;
+const remarksBracketY = remarksAxisY + 40;
+const remarksTextY = remarksAxisY + 160;
+const svgHeight = remarksTextY + 112;
+const remarkLeaderRun = 94;
+const maxProngDurationHours = 2;
 const rowCenters: Record<DutyStatus, number> = {
   off_duty: graphTop + rowHeight * 0.5,
   sleeper_berth: graphTop + rowHeight * 1.5,
@@ -80,7 +81,7 @@ export function LogSheet({ day }: LogSheetProps) {
           label="Total miles driving today"
           value={formatNumber(day.total_miles)}
         />
-        <PaperField label="Truck or tractor and trailer numbers" />
+        <PaperField label="Truck / trailer numbers" />
         <PaperField label="Name of carrier" />
         <PaperField label="Main office address" className="paper-log-field--wide" />
         <div className="paper-log-signature-block">
@@ -288,24 +289,40 @@ export function LogSheet({ day }: LogSheetProps) {
           {remarkEntries.slice(0, 12).map((entry, index) => {
             const startX = xForHour(entry.start);
             const endX = xForHour(entry.end);
-            const markerX = remarkMarkerX(entry.start, index);
-            const markerY = remarksTextY + (index % 3) * 20;
-            const locationX = markerX - 8;
-            const locationY = markerY - 30;
-            const purposeX = markerX + 8;
-            const purposeY = markerY + 16;
+            const bracketEndX = entry.isShortEvent
+              ? Math.max(endX, startX + 26)
+              : startX;
+            const elbowX = startX;
+            const elbowY = remarksBracketY;
+            const leaderEndX = remarkMarkerX(entry.start, index);
+            const leaderEndY = remarksTextY + (index % 2) * 16;
+            const leaderVectorX = elbowX - leaderEndX;
+            const leaderVectorY = elbowY - leaderEndY;
+            const leaderLength = Math.hypot(leaderVectorX, leaderVectorY);
+            const leaderUnitX = leaderVectorX / leaderLength;
+            const leaderUnitY = leaderVectorY / leaderLength;
+            const leaderNormalX = -leaderUnitY;
+            const leaderNormalY = leaderUnitX;
+            const textAngle = (Math.atan2(leaderVectorY, leaderVectorX) * 180) / Math.PI;
+            const labelBaseX = leaderEndX + leaderUnitX * 10;
+            const labelBaseY = leaderEndY + leaderUnitY * 10;
+            const locationX = labelBaseX - leaderNormalX * 8;
+            const locationY = labelBaseY - leaderNormalY * 8;
+            const purposeX = labelBaseX + leaderNormalX * 14;
+            const purposeY = labelBaseY + leaderNormalY * 14;
+            const leaderPath = entry.isShortEvent
+              ? `M ${startX} ${remarksAxisY} V ${elbowY} H ${bracketEndX} V ${remarksAxisY} M ${elbowX} ${elbowY} L ${leaderEndX} ${leaderEndY}`
+              : `M ${startX} ${remarksAxisY} V ${elbowY} L ${leaderEndX} ${leaderEndY}`;
             return (
               <g key={`${entry.start}-${entry.location}-${entry.purpose}-${index}`}>
                 <path
-                  d={entry.isShortEvent
-                    ? `M ${startX} ${remarksStemTop} V ${remarksStemBottom} H ${endX} V ${remarksStemTop} M ${startX} ${remarksStemBottom} L ${markerX} ${markerY}`
-                    : `M ${startX} ${remarksStemTop} V ${remarksStemBottom} L ${markerX} ${markerY}`}
+                  d={leaderPath}
                   className="log-remark-leader"
                 />
                 <text
                   x={locationX}
                   y={locationY}
-                  transform={`rotate(-48 ${locationX} ${locationY})`}
+                  transform={`rotate(${textAngle} ${locationX} ${locationY})`}
                   className="log-remark-location"
                 >
                   {entry.location}
@@ -314,7 +331,7 @@ export function LogSheet({ day }: LogSheetProps) {
                   <text
                     x={purposeX}
                     y={purposeY}
-                    transform={`rotate(-48 ${purposeX} ${purposeY})`}
+                    transform={`rotate(${textAngle} ${purposeX} ${purposeY})`}
                     className="log-remark-purpose"
                   >
                     {entry.purpose}
@@ -363,21 +380,63 @@ function PaperField({ label, value, className = "" }: PaperFieldProps) {
 
 function getRemarkEntries(segments: LogSegment[]) {
   return segments
-    .filter(
-      (segment, index) =>
-        segment.start > 0 &&
-        (index === 0 || segment.status !== segments[index - 1].status),
-    )
+    .filter((segment, index) => {
+      if (
+        segment.start <= 0 ||
+        (index > 0 && segment.status === segments[index - 1].status)
+      ) {
+        return false;
+      }
+
+      if (segments[index - 1]?.location === segment.location) {
+        return false;
+      }
+
+      const detail = formatRemarkDetail(segment.remarks);
+      if (detail) {
+        return true;
+      }
+
+      return isInitialLocationEntry(segments, index);
+    })
     .map((segment) => {
       const detail = formatRemarkDetail(segment.remarks);
       return {
         start: segment.start,
         end: segment.end,
-        location: segment.location,
+        location: formatRemarkLocation(segment.location),
         purpose: detail,
-        isShortEvent: segment.end - segment.start >= 0.5 && segment.end - segment.start <= 1,
+        isShortEvent: segment.end - segment.start >= 0.5 && segment.end - segment.start <= maxProngDurationHours,
       };
     });
+}
+
+function formatRemarkLocation(location: string): string {
+  const trimmedLocation = location.trim();
+  if (!trimmedLocation) {
+    return "";
+  }
+
+  const locationParts = trimmedLocation
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (locationParts.length >= 2) {
+    return locationParts.slice(-2).join(", ");
+  }
+
+  return trimmedLocation;
+}
+
+function isInitialLocationEntry(segments: LogSegment[], index: number): boolean {
+  const segment = segments[index];
+  const previousSegments = segments.slice(0, index);
+  return (
+    segment.status === "driving" &&
+    previousSegments.length > 0 &&
+    previousSegments.every((previousSegment) => previousSegment.status === "off_duty")
+  );
 }
 
 function formatRemarkDetail(remark: string): string {
@@ -405,8 +464,11 @@ function xForHour(hour: number): number {
 }
 
 function remarkMarkerX(hour: number, index: number): number {
-  const stagger = index % 2 === 0 ? -20 : 28;
-  return Math.min(Math.max(xForHour(hour) - 98 + stagger, graphLeft + 72), graphRight - 132);
+  const stagger = (index % 2) * 18;
+  return Math.min(
+    Math.max(xForHour(hour) - remarkLeaderRun - stagger, graphLeft + 54),
+    graphRight - 160,
+  );
 }
 
 function formatRemarksHour(hour: number): string {
