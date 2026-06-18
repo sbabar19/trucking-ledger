@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -19,8 +18,8 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import type { LocationSuggestion } from "@/lib/mapboxGeocoding";
 import type {
   Coordinates,
@@ -29,6 +28,7 @@ import type {
   TripPlanRequest,
   TripPlanResponse,
 } from "@/types";
+import { ArrowRightIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 interface PlannerLocationState {
@@ -132,112 +132,131 @@ function App() {
   };
 
   return (
-    <main className="min-h-screen bg-background p-4 text-foreground md:p-7">
+    <main className="app-shell min-h-screen overflow-hidden px-3 py-4 text-foreground sm:px-5 lg:px-7">
       <section
-        className="mx-auto grid max-w-[1480px] grid-cols-1 gap-6"
+        className="mx-auto grid max-w-[1480px] grid-cols-1 gap-5"
         aria-label="Trip planner input"
       >
-        <Card>
-          <CardHeader>
-            <CardDescription>Trucking Ledger</CardDescription>
-            <CardTitle>Route inputs</CardTitle>
-            <CardAction>
-              <Badge variant="secondary">70 hr / 8 day cycle</Badge>
-            </CardAction>
-          </CardHeader>
+        <div>
+          <div className="booking-hero rounded-[1.75rem] px-5 pt-10 pb-24 text-center shadow-lg shadow-foreground/5 sm:pt-12 md:px-10 md:pb-28">
+            <div className="relative z-1 mx-auto flex max-w-3xl flex-col items-center gap-3">
+              <Badge
+                className="border-white/25 bg-white/15 text-white shadow-none"
+                variant="outline"
+              >
+                Trucking Ledger
+              </Badge>
+              <h1 className="max-w-3xl font-serif text-4xl leading-[1.05] tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl">
+                Plan compliant trips.
+              </h1>
+            </div>
+          </div>
 
-          <CardContent>
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={handleSubmit}
-              noValidate
-            >
-              <FieldGroup className="grid grid-cols-[repeat(3,minmax(180px,1fr))_minmax(150px,0.55fr)] items-start gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-                <LocationInput
-                  id="current_location"
-                  label="Current location"
-                  value={locations.current_location.value}
-                  coordinates={locations.current_location.coordinates}
-                  accessToken={mapboxToken}
-                  onChange={(value) =>
-                    updateLocation("current_location", value, null)
-                  }
-                  onSelectSuggestion={(suggestion) =>
-                    handleSuggestionSelect("current_location", suggestion)
-                  }
-                />
-
-                <LocationInput
-                  id="pickup_location"
-                  label="Pickup location"
-                  value={locations.pickup_location.value}
-                  coordinates={locations.pickup_location.coordinates}
-                  accessToken={mapboxToken}
-                  onChange={(value) =>
-                    updateLocation("pickup_location", value, null)
-                  }
-                  onSelectSuggestion={(suggestion) =>
-                    handleSuggestionSelect("pickup_location", suggestion)
-                  }
-                />
-
-                <LocationInput
-                  id="dropoff_location"
-                  label="Dropoff location"
-                  value={locations.dropoff_location.value}
-                  coordinates={locations.dropoff_location.coordinates}
-                  accessToken={mapboxToken}
-                  onChange={(value) =>
-                    updateLocation("dropoff_location", value, null)
-                  }
-                  onSelectSuggestion={(suggestion) =>
-                    handleSuggestionSelect("dropoff_location", suggestion)
-                  }
-                />
-
-                <Field>
-                  <FieldLabel htmlFor="current-cycle-used">
-                    Current cycle used
-                  </FieldLabel>
-                  <Input
-                    id="current-cycle-used"
-                    value={currentCycleUsed}
-                    onChange={(event) =>
-                      setCurrentCycleUsed(event.target.value)
+          <Card className="dashboard-card booking-search-card mx-auto max-w-[1320px] rounded-2xl bg-card py-5 shadow-xl shadow-foreground/10 ring-1 ring-foreground/10">
+            <CardContent className="px-5 sm:px-6">
+              <form
+                className="flex flex-col gap-5"
+                onSubmit={handleSubmit}
+                noValidate
+              >
+                <FieldGroup className="booking-field-grid grid grid-cols-[repeat(3,minmax(190px,1fr))_minmax(150px,0.62fr)_auto] items-end gap-2.5 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
+                  <LocationInput
+                    id="current_location"
+                    label="Current location"
+                    value={locations.current_location.value}
+                    coordinates={locations.current_location.coordinates}
+                    accessToken={mapboxToken}
+                    className="booking-field"
+                    inputClassName="h-13 rounded-xl px-3 text-base md:text-base"
+                    onChange={(value) =>
+                      updateLocation("current_location", value, null)
                     }
-                    placeholder="12"
-                    inputMode="decimal"
+                    onSelectSuggestion={(suggestion) =>
+                      handleSuggestionSelect("current_location", suggestion)
+                    }
                   />
-                </Field>
-              </FieldGroup>
 
-              {errorMessage ? (
-                <Alert variant="destructive">
-                  <AlertDescription>{errorMessage}</AlertDescription>
-                </Alert>
-              ) : null}
+                  <LocationInput
+                    id="pickup_location"
+                    label="Pickup location"
+                    value={locations.pickup_location.value}
+                    coordinates={locations.pickup_location.coordinates}
+                    accessToken={mapboxToken}
+                    className="booking-field"
+                    inputClassName="h-13 rounded-xl px-3 text-base md:text-base"
+                    onChange={(value) =>
+                      updateLocation("pickup_location", value, null)
+                    }
+                    onSelectSuggestion={(suggestion) =>
+                      handleSuggestionSelect("pickup_location", suggestion)
+                    }
+                  />
 
-              <Separator />
+                  <LocationInput
+                    id="dropoff_location"
+                    label="Dropoff location"
+                    value={locations.dropoff_location.value}
+                    coordinates={locations.dropoff_location.coordinates}
+                    accessToken={mapboxToken}
+                    className="booking-field"
+                    inputClassName="h-13 rounded-xl px-3 text-base md:text-base"
+                    onChange={(value) =>
+                      updateLocation("dropoff_location", value, null)
+                    }
+                    onSelectSuggestion={(suggestion) =>
+                      handleSuggestionSelect("dropoff_location", suggestion)
+                    }
+                  />
 
-              <Button type="submit" size="lg" disabled={isLoading}>
-                {isLoading ? "Planning route..." : "Plan compliant trip"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                  <Field className="booking-field">
+                    <FieldLabel htmlFor="current-cycle-used">
+                      Current cycle used
+                    </FieldLabel>
+                    <Input
+                      id="current-cycle-used"
+                      className="h-13 rounded-xl px-3 text-base md:text-base"
+                      value={currentCycleUsed}
+                      onChange={(event) =>
+                        setCurrentCycleUsed(event.target.value)
+                      }
+                      placeholder="12"
+                      inputMode="decimal"
+                    />
+                  </Field>
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="h-13 min-w-32 rounded-xl px-7 text-base font-semibold max-[1180px]:col-span-2 max-[640px]:col-span-1"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Planning..." : "Plan"}
+                    <ArrowRightIcon data-icon="inline-end" />
+                  </Button>
+                </FieldGroup>
+
+                {errorMessage ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{errorMessage}</AlertDescription>
+                  </Alert>
+                ) : null}
+              </form>
+            </CardContent>
+          </Card>
+        </div>
 
         <MapPanel locations={locationSummary} route={result?.route} />
       </section>
 
       {result || isLoading ? (
         <section
-          className="mx-auto mt-6 grid max-w-[1480px] min-w-0 gap-6"
+          className="mx-auto mt-5 grid max-w-[1480px] min-w-0 gap-5"
           aria-live="polite"
         >
-          <Card>
+          <Card className="dashboard-card rounded-2xl shadow-sm">
             <CardHeader>
-              <CardDescription>Compliance summary</CardDescription>
-              <CardTitle>
+              <CardDescription className="section-kicker-card">Compliance summary</CardDescription>
+              <CardTitle className="section-title">
                 {result ? "Plan generated" : "Awaiting dispatch request"}
               </CardTitle>
             </CardHeader>
@@ -276,6 +295,7 @@ function App() {
                       : formatHours(cycleRemaining)
                   }
                   isLoading={isLoading && !result}
+                  tone={getCycleRemainingTone(cycleRemaining)}
                 />
               </div>
             </CardContent>
@@ -295,7 +315,7 @@ function App() {
           </Card>
 
           {isLoading ? (
-            <Card role="status">
+            <Card className="dashboard-card rounded-2xl" role="status">
               <CardHeader>
                 <CardTitle>Building compliant plan</CardTitle>
                 <CardDescription>
@@ -316,10 +336,12 @@ function App() {
                 instructions={result.route.instructions}
                 stops={result.schedule.stops}
               />
-              <Card aria-label="Daily log sheets">
+              <Card className="dashboard-card rounded-2xl" aria-label="Daily log sheets">
                 <CardHeader>
-                  <CardDescription>Filled records</CardDescription>
-                  <CardTitle>Daily log sheets</CardTitle>
+                  <CardDescription className="section-kicker-card">Filled records</CardDescription>
+                  <CardTitle className="section-title">
+                    Daily log sheets
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-6 print:block">
@@ -345,21 +367,53 @@ interface MetricProps {
   label: string;
   value: string;
   isLoading?: boolean;
+  tone?: "default" | "success" | "warning" | "danger";
 }
 
-function Metric({ label, value, isLoading = false }: MetricProps) {
+function Metric({
+  label,
+  value,
+  isLoading = false,
+  tone = "default",
+}: MetricProps) {
   return (
-    <Card size="sm" className="min-h-24">
+    <Card
+      size="sm"
+      className={cn("metric-card min-h-32 rounded-2xl", {
+        "metric-card--success": tone === "success",
+        "metric-card--warning": tone === "warning",
+        "metric-card--danger": tone === "danger",
+      })}
+    >
       <CardHeader>
-        <CardDescription>{label}</CardDescription>
+        <CardDescription className="metric-label text-xs uppercase tracking-[0.12em]">
+          {label}
+        </CardDescription>
         {isLoading ? (
           <Skeleton className="h-7 w-24" />
         ) : (
-          <CardTitle>{value}</CardTitle>
+          <CardTitle className="metric-value text-4xl font-semibold tracking-[-0.06em] text-foreground lg:text-5xl">
+            {value}
+          </CardTitle>
         )}
       </CardHeader>
     </Card>
   );
+}
+
+function getCycleRemainingTone(
+  cycleRemaining: number | null,
+): MetricProps["tone"] {
+  if (cycleRemaining === null) {
+    return "default";
+  }
+  if (cycleRemaining <= 0) {
+    return "danger";
+  }
+  if (cycleRemaining < 8) {
+    return "warning";
+  }
+  return "success";
 }
 
 function validateForm(

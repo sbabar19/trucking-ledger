@@ -1,11 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
-  CardAction,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Empty,
@@ -116,69 +112,55 @@ export function MapPanel({ locations, route }: MapPanelProps) {
   }
 
   return (
-    <Card className="print:hidden" aria-label="Route map">
-      <CardHeader>
-        <CardDescription>Route map</CardDescription>
-        <CardTitle>{route ? "Live route map" : "Selected locations"}</CardTitle>
-        <CardAction>
-          <Badge variant="secondary">
-            {selectedCoordinates.length} selected
-          </Badge>
-        </CardAction>
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-4">
-        <div className="h-[min(58vh,560px)] min-h-[360px] overflow-hidden rounded-xl bg-muted max-[900px]:min-h-[310px] max-[560px]:min-h-[280px]">
-          <Map
-            ref={mapRef}
-            initialViewState={{
-              longitude: -98.5795,
-              latitude: 39.8283,
-              zoom: 3.2,
-            }}
-            mapboxAccessToken={mapboxToken}
-            mapStyle="mapbox://styles/mapbox/navigation-night-v1"
-            style={{ width: "100%", height: "100%" }}
-          >
-            <NavigationControl position="top-right" />
-            {routeFeature ? (
-              <Source id="planned-route" type="geojson" data={routeFeature}>
-                <Layer {...routeLineLayer} />
-              </Source>
-            ) : null}
-            {route
-              ? route.waypoints.map((waypoint) => (
-                  <Marker
-                    key={`${waypoint.label}-${waypoint.location}`}
-                    longitude={waypoint.coordinates[0]}
-                    latitude={waypoint.coordinates[1]}
-                    anchor="bottom"
-                  >
-                    <WaypointMarker waypoint={waypoint} />
-                  </Marker>
-                ))
-              : Object.entries(locations).map(([field, location]) =>
-                  location.coordinates ? (
-                    <Marker
-                      key={field}
-                      longitude={location.coordinates[0]}
-                      latitude={location.coordinates[1]}
-                      anchor="bottom"
-                    >
-                      <Badge>{fieldLabels[field as LocationFieldKey]}</Badge>
-                    </Marker>
-                  ) : null,
-                )}
-          </Map>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="dashboard-card h-[min(52vh,520px)] min-h-[340px] overflow-hidden rounded-2xl bg-muted p-1 shadow-sm ring-1 ring-border max-[900px]:min-h-[310px] max-[560px]:min-h-[260px]">
+      <Map
+        ref={mapRef}
+        initialViewState={{
+          longitude: -98.5795,
+          latitude: 39.8283,
+          zoom: 3.2,
+        }}
+        mapboxAccessToken={mapboxToken}
+        mapStyle="mapbox://styles/mapbox/navigation-night-v1"
+          style={{ width: "100%", height: "100%", borderRadius: "1rem" }}
+      >
+        <NavigationControl position="top-right" />
+        {routeFeature ? (
+          <Source id="planned-route" type="geojson" data={routeFeature}>
+            <Layer {...routeLineLayer} />
+          </Source>
+        ) : null}
+        {route
+          ? route.waypoints.map((waypoint) => (
+              <Marker
+                key={`${waypoint.label}-${waypoint.location}`}
+                longitude={waypoint.coordinates[0]}
+                latitude={waypoint.coordinates[1]}
+                anchor="bottom"
+              >
+                <WaypointMarker waypoint={waypoint} />
+              </Marker>
+            ))
+          : Object.entries(locations).map(([field, location]) =>
+              location.coordinates ? (
+                <Marker
+                  key={field}
+                  longitude={location.coordinates[0]}
+                  latitude={location.coordinates[1]}
+                  anchor="bottom"
+                >
+                  <Badge>{fieldLabels[field as LocationFieldKey]}</Badge>
+                </Marker>
+              ) : null,
+            )}
+      </Map>
+    </div>
   );
 }
 
 function MapFallback({ route }: Pick<MapPanelProps, "route">) {
   return (
-    <Card className="print:hidden" aria-label="Route map fallback">
+    <Card className="dashboard-card rounded-2xl print:hidden" aria-label="Route map fallback">
       <CardContent>
         <Empty>
           <EmptyHeader>

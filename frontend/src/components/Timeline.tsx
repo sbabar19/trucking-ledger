@@ -31,27 +31,32 @@ interface TimelineProps {
 export function Timeline({ instructions, stops }: TimelineProps) {
   return (
     <section
-      className="grid grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] gap-6 print:hidden max-[1120px]:grid-cols-1"
+      className="grid items-stretch grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] gap-6 print:hidden max-[1120px]:grid-cols-1"
       aria-label="Route timeline"
     >
-      <Card>
+      <Card className="dashboard-card h-full rounded-2xl shadow-sm">
         <CardHeader>
-          <CardDescription>Turn-by-turn</CardDescription>
-          <CardTitle>Route instructions</CardTitle>
+          <CardDescription className="section-kicker-card">Turn-by-turn</CardDescription>
+          <CardTitle className="section-title">
+            Route instructions
+          </CardTitle>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="flex-1">
           {instructions.length ? (
-            <ScrollArea className="max-h-[440px] pr-3 max-[560px]:max-h-none">
-              <ItemGroup>
+            <ScrollArea className="h-full max-h-[440px] pr-3 max-[560px]:max-h-none">
+              <ItemGroup className="gap-2.5">
                 {instructions.map((instruction, index) => (
                   <Item
                     key={`${instruction.text}-${index}`}
+                    className="timeline-item"
                     role="listitem"
-                    variant="outline"
+                    variant="muted"
                   >
                     <ItemMedia>
-                      <Badge variant="secondary">{index + 1}</Badge>
+                      <Badge className="min-w-6" variant="secondary">
+                        {index + 1}
+                      </Badge>
                     </ItemMedia>
                     <ItemContent>
                       <ItemTitle className="line-clamp-none">
@@ -79,15 +84,17 @@ export function Timeline({ instructions, stops }: TimelineProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="dashboard-card h-full rounded-2xl shadow-sm">
         <CardHeader>
-          <CardDescription>Schedule</CardDescription>
-          <CardTitle>Stops and rests</CardTitle>
+          <CardDescription className="section-kicker-card">Schedule</CardDescription>
+          <CardTitle className="section-title">
+            Stops and rests
+          </CardTitle>
         </CardHeader>
 
         <CardContent>
           {stops.length ? (
-            <ItemGroup>
+            <ItemGroup className="schedule-list gap-2.5">
               {stops.map((stop, index) => {
                 const label = getStopLabel(stop);
                 const isRestStop = label === "Rest" || label === "Restart";
@@ -95,6 +102,7 @@ export function Timeline({ instructions, stops }: TimelineProps) {
                 return (
                   <Item
                     key={`${stop.type}-${stop.hour}-${index}`}
+                    className="timeline-item"
                     role="listitem"
                     variant={isRestStop ? "muted" : "outline"}
                   >

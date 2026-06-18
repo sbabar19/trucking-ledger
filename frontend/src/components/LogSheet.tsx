@@ -24,10 +24,10 @@ const dutyRows: Array<{ status: DutyStatus; label: string }> = [
 ];
 
 const statusColors: Record<DutyStatus, string> = {
-  off_duty: "#64748b",
-  sleeper_berth: "#8b5cf6",
-  driving: "#0891b2",
-  on_duty: "#d97706",
+  off_duty: "oklch(0.47 0.035 255)",
+  sleeper_berth: "oklch(0.56 0.13 292)",
+  driving: "oklch(0.53 0.13 210)",
+  on_duty: "oklch(0.62 0.14 62)",
 };
 
 export function LogSheet({ day, stops = [] }: LogSheetProps) {
@@ -80,7 +80,39 @@ export function LogSheet({ day, stops = [] }: LogSheetProps) {
         role="img"
         aria-label={`${day.label} duty status graph`}
       >
-        <rect x="0" y="0" width="1120" height="330" rx="18" fill="#ffffff" />
+        <rect
+          x="0"
+          y="0"
+          width="1120"
+          height="330"
+          rx="18"
+          fill="oklch(0.99 0.004 255)"
+        />
+        {dutyRows.map((row, index) => {
+          const rowTop = graphTop + index * rowHeight;
+          return (
+            <g key={row.status}>
+              <rect
+                x={graphLeft}
+                y={rowTop}
+                width={graphRight - graphLeft}
+                height={rowHeight}
+                fill={
+                  index % 2 === 0
+                    ? "oklch(0.97 0.01 255)"
+                    : "oklch(0.995 0.003 255)"
+                }
+              />
+              <text
+                x="22"
+                y={rowCenters[row.status] + 5}
+                className="log-row-label"
+              >
+                {row.label}
+              </text>
+            </g>
+          );
+        })}
         {Array.from({ length: 25 }, (_, hour) => {
           const x = xForHour(hour);
           const isMajor = hour % 6 === 0;
@@ -91,7 +123,9 @@ export function LogSheet({ day, stops = [] }: LogSheetProps) {
                 x2={x}
                 y1={graphTop - 24}
                 y2={graphTop + rowHeight * 4}
-                stroke={isMajor ? "#94a3b8" : "#dbe3ec"}
+                stroke={
+                  isMajor ? "oklch(0.7 0.025 255)" : "oklch(0.9 0.012 255)"
+                }
                 strokeWidth={isMajor ? 1.4 : 0.8}
               />
               <text
@@ -110,27 +144,13 @@ export function LogSheet({ day, stops = [] }: LogSheetProps) {
           const rowTop = graphTop + index * rowHeight;
           return (
             <g key={row.status}>
-              <rect
-                x={graphLeft}
-                y={rowTop}
-                width={graphRight - graphLeft}
-                height={rowHeight}
-                fill={index % 2 === 0 ? "#f8fafc" : "#ffffff"}
-              />
               <line
                 x1={graphLeft}
                 x2={graphRight}
                 y1={rowTop}
                 y2={rowTop}
-                stroke="#cbd5e1"
+                stroke="oklch(0.84 0.018 255)"
               />
-              <text
-                x="22"
-                y={rowCenters[row.status] + 5}
-                className="log-row-label"
-              >
-                {row.label}
-              </text>
             </g>
           );
         })}
@@ -139,7 +159,7 @@ export function LogSheet({ day, stops = [] }: LogSheetProps) {
           x2={graphRight}
           y1={graphTop + rowHeight * 4}
           y2={graphTop + rowHeight * 4}
-          stroke="#cbd5e1"
+          stroke="oklch(0.84 0.018 255)"
         />
 
         {drawableSegments.map((segment, index) => (
@@ -151,7 +171,7 @@ export function LogSheet({ day, stops = [] }: LogSheetProps) {
                 x2={xForHour(segment.start)}
                 y1={rowCenters[drawableSegments[index - 1].status]}
                 y2={rowCenters[segment.status]}
-                stroke="#0f172a"
+                stroke="oklch(0.27 0.045 255)"
                 strokeWidth="3"
               />
             ) : null}

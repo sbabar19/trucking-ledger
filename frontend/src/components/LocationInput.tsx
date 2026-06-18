@@ -25,6 +25,8 @@ interface LocationInputProps {
   value: string;
   coordinates: Coordinates | null;
   accessToken?: string;
+  className?: string;
+  inputClassName?: string;
   onChange: (value: string) => void;
   onSelectSuggestion: (suggestion: LocationSuggestion) => void;
 }
@@ -35,6 +37,8 @@ export function LocationInput({
   value,
   coordinates,
   accessToken,
+  className,
+  inputClassName,
   onChange,
   onSelectSuggestion,
 }: LocationInputProps) {
@@ -96,28 +100,32 @@ export function LocationInput({
     [],
   );
 
-  const statusText = coordinates
-    ? formatCoordinates(coordinates)
-    : "Type to search";
+  const statusText = coordinates ? formatCoordinates(coordinates) : "";
   const showSuggestions =
     canSearch &&
     isOpen &&
     (suggestions.length > 0 || isSearching || Boolean(searchError));
 
   return (
-    <Field>
+    <Field className={className}>
       <FieldContent>
         <div className="flex items-center justify-between gap-2">
           <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <Badge variant={coordinates ? "default" : "secondary"}>
-            {statusText}
-          </Badge>
+          {!!statusText && (
+            <Badge variant={coordinates ? "default" : "secondary"}>
+              {statusText}
+            </Badge>
+          )}
         </div>
       </FieldContent>
-      <Popover open={showSuggestions} onOpenChange={(open) => !open && setIsOpen(false)}>
+      <Popover
+        open={showSuggestions}
+        onOpenChange={(open) => !open && setIsOpen(false)}
+      >
         <PopoverAnchor asChild>
           <Input
             id={id}
+            className={inputClassName}
             value={value}
             onFocus={() => {
               setIsFocused(true);
