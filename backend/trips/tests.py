@@ -2,7 +2,7 @@ from django.test import TestCase
 from unittest.mock import patch
 
 from trips.services.hos import build_schedule, TripLeg
-from trips.services.routing import RoutingError
+from trips.services.routing import interpolate_route_coordinate, RoutingError
 
 
 VALID_REQUEST = {
@@ -50,12 +50,14 @@ class HOSTests(TestCase):
         self.assertIn('Dropoff', remarks)
         self.assertNotIn('Required 30-minute break', remarks)
         self.assertNotIn('Required 10-hour break', remarks)
+        self.assertIn('total_miles', schedule['days'][0])
+        self.assertEqual(schedule['days'][0]['total_miles'], 300.0)
 
     def test_trip_over_eight_hours_inserts_thirty_minute_break(self):
         schedule = build_schedule([
             TripLeg('pickup', 60, 1, 'A', 'B'),
             TripLeg('dropoff', 540, 9, 'B', 'C'),
-        ], current_cycle_used=0)
+        ], current_cycle_used=0, location_resolver=lambda route_mile: f'Route mile {round(route_mile)}')
 
         breaks = [event for event in schedule['events'] if event['remarks'] == 'Required 30-minute break']
         driving_after_break = [
@@ -64,7 +66,9 @@ class HOSTests(TestCase):
         ]
         self.assertTrue(breaks)
         self.assertEqual(breaks[0]['status'], 'off_duty')
+        self.assertEqual(breaks[0]['location'], 'Route mile 540')
         self.assertTrue(driving_after_break)
+        self.assertIn('location', schedule['days'][0]['segments'][0])
 
     def test_trip_over_eleven_hours_inserts_ten_hour_break(self):
         schedule = build_schedule([
@@ -83,7 +87,11 @@ class HOSTests(TestCase):
         ], current_cycle_used=0)
 
         fuel_stops = [stop for stop in schedule['stops'] if stop['type'] == 'fuel']
+        fuel_events = [event for event in schedule['events'] if event['remarks'] == 'Fueling']
         self.assertTrue(fuel_stops)
+        self.assertTrue(fuel_events)
+        self.assertEqual(fuel_events[0]['status'], 'on_duty')
+        self.assertEqual(fuel_events[0]['end_hour'] - fuel_events[0]['start_hour'], 0.25)
         self.assertEqual(fuel_stops[0]['duration_hours'], 0.25)
 
     def test_high_cycle_used_inserts_restart_before_exceeding_seventy_hours(self):
@@ -93,7 +101,9 @@ class HOSTests(TestCase):
         ], current_cycle_used=69.5)
 
         restart = [event for event in schedule['events'] if event['remarks'] == 'Required 34-hour restart']
+        restart_stops = [stop for stop in schedule['stops'] if stop['type'] == 'restart']
         self.assertTrue(restart)
+        self.assertTrue(restart_stops)
         self.assertEqual(restart[0]['end_hour'] - restart[0]['start_hour'], 34.0)
 
     def test_multi_day_trip_totals_sum_to_twenty_four_hours(self):
@@ -105,6 +115,19 @@ class HOSTests(TestCase):
         self.assertGreater(len(schedule['days']), 1)
         for day in schedule['days']:
             self.assertEqual(round(sum(day['totals'].values()), 2), 24.0)
+        total_miles = round(sum(day['total_miles'] for day in schedule['days']), 1)
+        self.assertGreater(total_miles, 0)
+        self.assertEqual(total_miles, 1900.0)
+
+    def test_route_coordinate_interpolation_uses_route_distance_ratio(self):
+        coordinate = interpolate_route_coordinate(
+            {'type': 'LineString', 'coordinates': [[-100.0, 40.0], [-90.0, 40.0]]},
+            route_mile=50,
+            route_distance_miles=100,
+        )
+
+        self.assertAlmostEqual(coordinate[0], -95.0, places=1)
+        self.assertAlmostEqual(coordinate[1], 40.0, places=1)
 
 
 class TripPlanAPITests(TestCase):
@@ -132,8 +155,9 @@ class TripPlanAPITests(TestCase):
         self.assertEqual(response.status_code, 503)
         mock_get_route.assert_called_once()
 
+    @patch('trips.services.routing.reverse_geocode_coordinates', return_value='Route City, TX')
     @patch('trips.views.get_route', return_value=MOCK_ROUTE)
-    def test_successful_request_returns_route_and_schedule(self, mock_get_route):
+    def test_successful_request_returns_route_and_schedule(self, mock_get_route, mock_reverse_geocode):
         response = self.client.post('/api/trips/plan/', data=VALID_REQUEST, content_type='application/json')
 
         self.assertEqual(response.status_code, 200)
@@ -146,7 +170,11 @@ class TripPlanAPITests(TestCase):
         self.assertTrue(payload['schedule']['events'])
         self.assertTrue(payload['schedule']['days'])
         self.assertTrue(payload['schedule']['days'][0]['segments'])
+        self.assertIn('total_miles', payload['schedule']['days'][0])
+        self.assertIn('location', payload['schedule']['days'][0]['segments'][0])
+        self.assertGreater(payload['schedule']['days'][0]['total_miles'], 0)
         mock_get_route.assert_called_once_with('Dallas, TX', 'Phoenix, AZ', 'Los Angeles, CA', None, None, None)
+        self.assertTrue(mock_reverse_geocode.called)
 
     @patch('trips.views.get_route', return_value=MOCK_ROUTE)
     def test_coordinates_are_forwarded_to_route_lookup(self, mock_get_route):

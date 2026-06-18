@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from math import ceil
+from typing import Callable
 
 
 OFF_DUTY = 'off_duty'
@@ -18,6 +19,7 @@ FUEL_INTERVAL_MILES = 1000.0
 FUEL_DURATION_HOURS = 0.25
 SERVICE_DURATION_HOURS = 1.0
 EPSILON = 0.000001
+LocationResolver = Callable[[float], str]
 
 
 @dataclass
@@ -38,7 +40,7 @@ class DutyEvent:
     location: str
 
 
-def build_schedule(legs: list[TripLeg], current_cycle_used: float) -> dict:
+def build_schedule(legs: list[TripLeg], current_cycle_used: float, location_resolver: LocationResolver | None = None) -> dict:
     events: list[DutyEvent] = []
     stops: list[dict] = []
     state = {
@@ -49,6 +51,8 @@ def build_schedule(legs: list[TripLeg], current_cycle_used: float) -> dict:
         'driving_since_break': 0.0,
         'route_miles': 0.0,
         'next_fuel_mile': FUEL_INTERVAL_MILES,
+        'day_miles': {},
+        'location_resolver': location_resolver,
     }
 
     _add_event(events, OFF_DUTY, 0.0, 6.0, 'Off duty', 'Trip origin')
@@ -68,7 +72,7 @@ def build_schedule(legs: list[TripLeg], current_cycle_used: float) -> dict:
             'No adverse driving conditions',
         ],
         'events': [_event_to_dict(event) for event in events],
-        'days': _build_days(events, float(current_cycle_used)),
+        'days': _build_days(events, float(current_cycle_used), state['day_miles']),
         'stops': stops,
     }
 
@@ -95,7 +99,8 @@ def _drive_leg(events: list[DutyEvent], stops: list[dict], state: dict, leg: Tri
 
         start_hour = state['hour']
         end_hour = start_hour + chunk
-        _add_event(events, DRIVING, start_hour, end_hour, f'Drive toward {leg.name}', leg.start_location)
+        start_location = _route_location(state, leg.start_location)
+        _add_event(events, DRIVING, start_hour, end_hour, f'Drive toward {leg.name}', start_location)
         state['hour'] = end_hour
         state['cycle_used'] += chunk
         state['duty_driving'] += chunk
@@ -103,6 +108,7 @@ def _drive_leg(events: list[DutyEvent], stops: list[dict], state: dict, leg: Tri
         remaining_duration -= chunk
 
         miles_driven = chunk * speed_mph if speed_mph > EPSILON else 0.0
+        _add_driving_miles(state['day_miles'], start_hour, end_hour, miles_driven)
         state['route_miles'] += miles_driven
         remaining_distance = max(remaining_distance - miles_driven, 0.0)
 
@@ -163,10 +169,10 @@ def _add_fuel_event(events: list[DutyEvent], stops: list[dict], state: dict) -> 
         _insert_restart(events, stops, state)
 
     route_mile = int(round(state['next_fuel_mile']))
-    location = f'Fuel stop near route mile {route_mile}'
+    location = _route_location(state, f'near route mile {route_mile}')
     start_hour = state['hour']
     end_hour = start_hour + FUEL_DURATION_HOURS
-    _add_event(events, ON_DUTY, start_hour, end_hour, location, location)
+    _add_event(events, ON_DUTY, start_hour, end_hour, 'Fueling', location)
     stops.append({
         'type': 'fuel',
         'hour': _round_hour(start_hour),
@@ -180,8 +186,8 @@ def _add_fuel_event(events: list[DutyEvent], stops: list[dict], state: dict) -> 
 def _insert_thirty_minute_break(events: list[DutyEvent], stops: list[dict], state: dict) -> None:
     start_hour = state['hour']
     end_hour = start_hour + THIRTY_MINUTE_BREAK_HOURS
-    location = 'Required 30-minute break'
-    _add_event(events, OFF_DUTY, start_hour, end_hour, location, location)
+    location = _route_location(state, 'break location')
+    _add_event(events, OFF_DUTY, start_hour, end_hour, 'Required 30-minute break', location)
     stops.append({
         'type': 'rest',
         'hour': _round_hour(start_hour),
@@ -195,8 +201,8 @@ def _insert_thirty_minute_break(events: list[DutyEvent], stops: list[dict], stat
 def _insert_ten_hour_break(events: list[DutyEvent], stops: list[dict], state: dict) -> None:
     start_hour = state['hour']
     end_hour = start_hour + TEN_HOUR_BREAK_HOURS
-    location = 'Required 10-hour break'
-    _add_event(events, OFF_DUTY, start_hour, end_hour, location, location)
+    location = _route_location(state, 'break location')
+    _add_event(events, OFF_DUTY, start_hour, end_hour, 'Required 10-hour break', location)
     stops.append({
         'type': 'rest',
         'hour': _round_hour(start_hour),
@@ -212,10 +218,10 @@ def _insert_ten_hour_break(events: list[DutyEvent], stops: list[dict], state: di
 def _insert_restart(events: list[DutyEvent], stops: list[dict], state: dict) -> None:
     start_hour = state['hour']
     end_hour = start_hour + RESTART_HOURS
-    location = 'Required 34-hour restart'
-    _add_event(events, OFF_DUTY, start_hour, end_hour, location, location)
+    location = _route_location(state, 'restart location')
+    _add_event(events, OFF_DUTY, start_hour, end_hour, 'Required 34-hour restart', location)
     stops.append({
-        'type': 'rest',
+        'type': 'restart',
         'hour': _round_hour(start_hour),
         'duration_hours': RESTART_HOURS,
         'location': location,
@@ -233,7 +239,14 @@ def _add_event(events: list[DutyEvent], status: str, start_hour: float, end_hour
     events.append(DutyEvent(status, start_hour, end_hour, remarks, location))
 
 
-def _build_days(events: list[DutyEvent], current_cycle_used: float) -> list[dict]:
+def _route_location(state: dict, fallback: str) -> str:
+    resolver = state.get('location_resolver')
+    if not resolver:
+        return fallback
+    return resolver(state['route_miles'])
+
+
+def _build_days(events: list[DutyEvent], current_cycle_used: float, day_miles: dict[int, float]) -> list[dict]:
     final_hour = max((event.end_hour for event in events), default=24.0)
     day_count = max(1, ceil(final_hour / 24.0))
     days = []
@@ -246,25 +259,27 @@ def _build_days(events: list[DutyEvent], current_cycle_used: float) -> list[dict
         segments = []
         totals = {OFF_DUTY: 0.0, SLEEPER_BERTH: 0.0, DRIVING: 0.0, ON_DUTY: 0.0}
         cursor = day_start
+        cursor_location = 'Trip origin'
 
         for event in events:
             if event.end_hour <= day_start + EPSILON or event.start_hour >= day_end - EPSILON:
                 continue
 
             if event.start_hour > cursor + EPSILON:
-                _append_day_segment(segments, totals, OFF_DUTY, cursor, min(event.start_hour, day_end), 'Off duty')
+                _append_day_segment(segments, totals, OFF_DUTY, cursor, min(event.start_hour, day_end), 'Off duty', cursor_location)
 
             segment_start = max(event.start_hour, day_start)
             segment_end = min(event.end_hour, day_end)
-            _append_day_segment(segments, totals, event.status, segment_start, segment_end, event.remarks)
+            _append_day_segment(segments, totals, event.status, segment_start, segment_end, event.remarks, event.location)
             if event.status in (DRIVING, ON_DUTY):
                 cycle_used += segment_end - segment_start
             if event.remarks == 'Required 34-hour restart' and segment_end >= event.end_hour - EPSILON:
                 cycle_used = 0.0
             cursor = max(cursor, segment_end)
+            cursor_location = event.location
 
         if cursor < day_end - EPSILON:
-            _append_day_segment(segments, totals, OFF_DUTY, cursor, day_end, 'Off duty')
+            _append_day_segment(segments, totals, OFF_DUTY, cursor, day_end, 'Off duty', cursor_location)
 
         rounded_totals = _rounded_totals(totals)
         days.append({
@@ -272,6 +287,7 @@ def _build_days(events: list[DutyEvent], current_cycle_used: float) -> list[dict
             'label': f'Day {day_index + 1}',
             'segments': segments,
             'totals': rounded_totals,
+            'total_miles': _round_miles(day_miles.get(day_index, 0.0)),
             'recap': {
                 'cycle_used_start': _round_hour(cycle_start),
                 'cycle_used_end': _round_hour(cycle_used),
@@ -282,7 +298,21 @@ def _build_days(events: list[DutyEvent], current_cycle_used: float) -> list[dict
     return days
 
 
-def _append_day_segment(segments: list[dict], totals: dict, status: str, start_hour: float, end_hour: float, remarks: str) -> None:
+def _add_driving_miles(day_miles: dict[int, float], start_hour: float, end_hour: float, miles: float) -> None:
+    if end_hour <= start_hour + EPSILON or miles <= EPSILON:
+        return
+
+    cursor = start_hour
+    duration = end_hour - start_hour
+    while cursor < end_hour - EPSILON:
+        day_index = int(cursor // 24.0)
+        next_day_start = (day_index + 1) * 24.0
+        segment_end = min(end_hour, next_day_start)
+        day_miles[day_index] = day_miles.get(day_index, 0.0) + miles * ((segment_end - cursor) / duration)
+        cursor = segment_end
+
+
+def _append_day_segment(segments: list[dict], totals: dict, status: str, start_hour: float, end_hour: float, remarks: str, location: str) -> None:
     if end_hour <= start_hour + EPSILON:
         return
 
@@ -292,6 +322,7 @@ def _append_day_segment(segments: list[dict], totals: dict, status: str, start_h
         'start': _round_hour(start_hour - day_start),
         'end': _round_hour(end_hour - day_start),
         'remarks': remarks,
+        'location': location,
     })
     totals[status] += end_hour - start_hour
 
@@ -316,3 +347,7 @@ def _event_to_dict(event: DutyEvent) -> dict:
 
 def _round_hour(value: float) -> float:
     return round(value + 0.0, 2)
+
+
+def _round_miles(value: float) -> float:
+    return round(value + 0.0, 1)

@@ -119,139 +119,335 @@
   border-radius: 12px;
 }
 
-.log-sheet {
-  padding: 20px;
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: color-mix(in oklch, var(--card), oklch(0.985 0.005 255) 3%);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 12px 24px -22px rgb(15 23 42 / 0.35);
-}
-
-.log-sheet-header {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.2fr);
-  gap: 18px;
-  align-items: start;
-  margin-bottom: 16px;
-}
-
-.log-sheet .section-kicker {
-  margin: 0 0 8px;
+.log-day-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   color: var(--muted-foreground);
-  font-size: 0.74rem;
-  font-weight: 650;
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.log-sheet-scroll {
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+}
+
+.log-sheet {
+  width: 11in;
+  max-width: none;
+  min-height: 8.2in;
+  padding: 0.28in;
+  margin-inline: auto;
+  color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 0.25rem;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 16px 30px -24px rgb(15 23 42 / 0.36);
+}
+
+.paper-log-title {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.75fr) minmax(260px, 1fr) minmax(220px, 0.9fr);
+  gap: 0.18in;
+  align-items: center;
+  padding-bottom: 0.12in;
+  border-bottom: 2px solid #111827;
+}
+
+.paper-log-heading p,
+.paper-log-heading h3,
+.paper-log-copy-notes span,
+.paper-log-field dd,
+.paper-log-field dt,
+.paper-log-remarks h4,
+.paper-log-remark-lines p,
+.paper-log-signature-block p {
+  margin: 0;
+}
+
+.paper-log-agency {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.paper-log-heading {
+  text-align: center;
+}
+
+.paper-log-heading h3 {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.paper-log-heading p {
+  font-size: 0.72rem;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.log-sheet-header h3 {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 650;
-  letter-spacing: -0.03em;
-}
-
-.log-sheet-header dl {
+.paper-log-copy-notes {
   display: grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr));
-  gap: 10px;
-  margin: 0;
-}
-
-.log-sheet-header div {
-  min-width: 0;
-}
-
-.log-sheet-header dt {
-  color: var(--muted-foreground);
-  font-size: 0.72rem;
+  gap: 0.03in;
+  color: #4b5563;
+  font-size: 0.62rem;
   font-weight: 700;
+  letter-spacing: 0.035em;
+  line-height: 1.25;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.paper-log-fields,
+.paper-log-recap {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.12in 0.16in;
+  padding-top: 0.16in;
+}
+
+.paper-log-field {
+  display: flex;
+  min-height: 0.42in;
+  flex-direction: column;
+  justify-content: end;
+}
+
+.paper-log-field--wide {
+  grid-column: span 2;
+}
+
+.paper-log-date-group {
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  gap: 0.08in;
+  align-items: end;
+}
+
+.paper-log-date-group > span {
+  padding-bottom: 1.35rem;
+  color: #111827;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.paper-log-date-field {
+  min-height: 0;
+}
+
+.paper-log-signature-block {
+  grid-column: span 2;
+}
+
+.paper-log-signature-block p {
+  padding-bottom: 0.03in;
+  color: #111827;
+  font-size: 0.68rem;
+  font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.log-sheet-header dd {
-  margin: 4px 0 0;
-  color: color-mix(in oklch, var(--foreground), oklch(0.21 0.034 264) 36%);
-  font-size: 1.02rem;
+.paper-log-field dd {
+  min-height: 1.35rem;
+  color: #111827;
+  border-bottom: 1px solid #111827;
+  font-size: 0.94rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.paper-log-field dt {
+  padding-top: 0.04in;
+  color: #374151;
+  font-size: 0.64rem;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.paper-log-graph-wrap {
+  margin-top: 0.18in;
 }
 
 .log-graph {
   width: 100%;
   height: auto;
-  border: 1px solid var(--border);
-  border-radius: 0.9rem;
-  background: oklch(0.99 0.004 255);
+  background: #ffffff;
 }
 
 .log-hour-label,
 .log-row-label,
-.log-total-label,
-.log-total-value {
-  fill: #26384d;
+.log-row-label-small,
+.log-row-number,
+.log-total-heading,
+.log-total-heading-dark,
+.log-total-value,
+.log-form-note,
+.log-remark-hour,
+.log-remarks-heading,
+.log-remark-location,
+.log-remark-purpose {
+  fill: #111827;
   font-family: var(--font-sans);
   font-weight: 700;
 }
 
-.log-hour-label {
-  font-size: 12px;
-}
-
 .log-row-label,
-.log-total-label,
+.log-row-number,
 .log-total-value {
-  font-size: 13px;
+  font-size: 10px;
 }
 
-.log-total-label {
-  fill: #172234;
+.log-hour-label {
+  font-size: 9px;
+  font-weight: 800;
 }
 
-.log-remarks {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: 0.9rem;
-  background: color-mix(in oklch, var(--muted), var(--card) 36%);
+.log-row-label-small {
+  font-size: 8px;
 }
 
-.log-remarks h4 {
-  margin: 0 0 8px;
-  color: var(--foreground);
-  font-size: 0.84rem;
-  font-weight: 650;
+.log-total-heading,
+.log-total-heading-dark,
+.log-form-note,
+.log-remark-hour {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.log-remarks ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
+.log-remarks-heading {
+  font-size: 22px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
 }
 
-.log-remarks li {
-  padding: 7px 9px;
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--card);
+.log-remark-location,
+.log-remark-purpose {
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.log-remark-purpose {
+  font-size: 11px;
+}
+
+.log-total-heading {
+  fill: #111827;
+}
+
+.log-total-heading-dark {
+  fill: #111827;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.log-grid-hour,
+.log-grid-half,
+.log-grid-quarter,
+.log-grid-row {
+  stroke: #111827;
+}
+
+.log-grid-half {
+  stroke-width: 0.8;
+}
+
+.log-grid-quarter {
+  stroke-width: 0.55;
+}
+
+.log-duty-line {
+  stroke: #111827;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 3.5;
+}
+
+.log-remark-axis,
+.log-remark-tick,
+.log-remark-leader {
+  fill: none;
+  stroke: #111827;
+}
+
+.log-remark-axis {
+  stroke-width: 1.2;
+}
+
+.log-remark-tick {
+  stroke-width: 0.85;
+}
+
+.log-remark-leader {
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 2.7;
+}
+
+.paper-log-lower {
+  margin-top: 0.08in;
+}
+
+.paper-log-shipping-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.4fr) auto;
+  gap: 0.16in;
+  align-items: end;
+}
+
+.paper-log-total-marker {
+  justify-self: end;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.paper-log-remarks {
+  min-height: 1.1in;
+  margin-top: 0.08in;
+}
+
+.paper-log-remarks h4 {
+  color: #111827;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.paper-log-remark-lines {
+  display: grid;
+  grid-auto-rows: minmax(0.22in, auto);
+  margin-top: 0.04in;
+}
+
+.paper-log-remark-lines p {
+  min-height: 0.22in;
+  color: #111827;
+  border-bottom: 1px solid #111827;
   font-size: 0.78rem;
-  font-weight: 500;
+  line-height: 1.55;
 }
 
-.log-remarks p {
-  margin: 0;
-  color: var(--muted-foreground);
+.paper-log-empty-line {
+  height: 0.34in;
+  margin-top: 0.12in;
+  border-bottom: 1px solid #111827;
 }
 
 @media (max-width: 1120px) {
-  .log-sheet-header dl {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 900px) {
@@ -259,9 +455,6 @@
     margin-top: -4.75rem;
   }
 
-  .log-sheet-header {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 560px) {
@@ -276,27 +469,72 @@
     margin-top: -3.75rem;
   }
 
-  .log-sheet {
-    padding: 12px;
-  }
-
-  .log-sheet-header dl {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media print {
+  @page {
+    size: landscape;
+    margin: 0.25in;
+  }
+
   body {
     background: #ffffff;
   }
 
-  .log-sheet {
-    break-inside: avoid;
-    page-break-inside: avoid;
+  .app-shell {
+    min-height: auto;
     padding: 0;
-    margin-bottom: 18px;
+    overflow: visible;
+    background: #ffffff;
+  }
+
+  .app-shell > section:first-of-type,
+  .app-shell > section[aria-live="polite"] > .dashboard-card:not([aria-label="Daily log sheets"]),
+  .app-shell > section[aria-live="polite"] > [aria-label="Route timeline"] {
+    display: none;
+  }
+
+  .app-shell > section[aria-live="polite"],
+  .app-shell [aria-label="Daily log sheets"],
+  .app-shell [aria-label="Daily log sheets"] > [data-slot="card-content"],
+  .app-shell [aria-label="Daily log sheets"] > [data-slot="card-content"] > div,
+  .log-sheet-scroll {
+    display: block;
+    max-width: none;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
     border: 0;
+    border-radius: 0;
     box-shadow: none;
     background: #ffffff;
+  }
+
+  .app-shell [aria-label="Daily log sheets"] > [data-slot="card-header"] {
+    display: none;
+  }
+
+  .log-day-controls {
+    display: none;
+  }
+
+  .log-sheet {
+    width: 100%;
+    min-height: 7in;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: #ffffff;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .log-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 }

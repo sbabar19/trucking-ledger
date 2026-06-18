@@ -52,6 +52,7 @@ export interface LogSegment {
   start: number;
   end: number;
   remarks: string;
+  location: string;
 }
 
 export interface DutyStatusTotals {
@@ -66,7 +67,7 @@ export interface LogDay {
   label: string;
   segments: LogSegment[];
   totals: DutyStatusTotals;
-  total_miles?: number;
+  total_miles: number;
   recap: {
     cycle_used_start: number;
     cycle_used_end: number;

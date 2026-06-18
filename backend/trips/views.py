@@ -4,7 +4,7 @@ from rest_framework.response import Response
 
 from .serializers import TripPlanRequestSerializer
 from .services.hos import build_schedule, TripLeg
-from .services.routing import get_route, RoutingError
+from .services.routing import build_route_location_resolver, get_route, RoutingError
 
 
 @api_view(['POST'])
@@ -43,6 +43,8 @@ def plan_trip(request):
         ),
     ]
 
+    location_resolver = build_route_location_resolver(route['geometry'], route['distance_miles'])
+
     return Response({
         'route': {
             'distance_miles': route['distance_miles'],
@@ -51,5 +53,5 @@ def plan_trip(request):
             'waypoints': route['waypoints'],
             'instructions': route['instructions'],
         },
-        'schedule': build_schedule(legs, data['current_cycle_used']),
+        'schedule': build_schedule(legs, data['current_cycle_used'], location_resolver),
     })

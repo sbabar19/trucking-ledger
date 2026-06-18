@@ -1,11 +1,14 @@
 import os
+from math import asin, cos, radians, sin, sqrt
 
 import requests
 
 
 GEOCODING_URL = 'https://api.mapbox.com/search/geocode/v6/forward'
+REVERSE_GEOCODING_URL = 'https://api.mapbox.com/search/geocode/v6/reverse'
 DIRECTIONS_URL = 'https://api.mapbox.com/directions/v5/mapbox/driving/{}'
 METERS_PER_MILE = 1609.344
+EARTH_RADIUS_MILES = 3958.7613
 
 
 class RoutingError(Exception):
@@ -108,6 +111,94 @@ def get_route(
     }
 
 
+def build_route_location_resolver(geometry: dict, route_distance_miles: float):
+    cache: dict[float, str] = {}
+
+    def resolve(route_mile: float) -> str:
+        cache_key = round(max(route_mile, 0.0), 1)
+        if cache_key not in cache:
+            coordinate = interpolate_route_coordinate(geometry, cache_key, route_distance_miles)
+            if coordinate:
+                try:
+                    cache[cache_key] = reverse_geocode_coordinates(coordinate)
+                except RoutingError:
+                    cache[cache_key] = _route_mile_label(cache_key)
+            else:
+                cache[cache_key] = _route_mile_label(cache_key)
+        return cache[cache_key]
+
+    return resolve
+
+
+def interpolate_route_coordinate(geometry: dict, route_mile: float, route_distance_miles: float) -> list[float] | None:
+    coordinates = geometry.get('coordinates') if isinstance(geometry, dict) else None
+    if not coordinates:
+        return None
+
+    valid_coordinates = [coordinate for coordinate in coordinates if _is_coordinate_pair(coordinate)]
+    if not valid_coordinates:
+        return None
+    if len(valid_coordinates) == 1:
+        return [float(valid_coordinates[0][0]), float(valid_coordinates[0][1])]
+
+    segment_distances = [
+        _haversine_miles(valid_coordinates[index], valid_coordinates[index + 1])
+        for index in range(len(valid_coordinates) - 1)
+    ]
+    geometry_distance = sum(segment_distances)
+    if geometry_distance <= 0:
+        return [float(valid_coordinates[0][0]), float(valid_coordinates[0][1])]
+
+    route_ratio = route_mile / route_distance_miles if route_distance_miles > 0 else 0.0
+    target_distance = geometry_distance * min(max(route_ratio, 0.0), 1.0)
+    cursor = 0.0
+
+    for index, segment_distance in enumerate(segment_distances):
+        if cursor + segment_distance >= target_distance:
+            fraction = (target_distance - cursor) / segment_distance if segment_distance > 0 else 0.0
+            start = valid_coordinates[index]
+            end = valid_coordinates[index + 1]
+            return [
+                float(start[0]) + (float(end[0]) - float(start[0])) * fraction,
+                float(start[1]) + (float(end[1]) - float(start[1])) * fraction,
+            ]
+        cursor += segment_distance
+
+    last_coordinate = valid_coordinates[-1]
+    return [float(last_coordinate[0]), float(last_coordinate[1])]
+
+
+def reverse_geocode_coordinates(coordinates: list[float]) -> str:
+    token = _get_access_token()
+    try:
+        response = requests.get(
+            REVERSE_GEOCODING_URL,
+            params={
+                'longitude': coordinates[0],
+                'latitude': coordinates[1],
+                'access_token': token,
+                'country': 'us',
+                'types': 'address,place,locality',
+                'limit': 1,
+            },
+            timeout=15,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException as exc:
+        raise RoutingError('Mapbox reverse geocoding request failed') from exc
+    except ValueError as exc:
+        raise RoutingError('Mapbox reverse geocoding response was invalid') from exc
+
+    features = payload.get('features') or []
+    for feature in features:
+        location = _format_reverse_geocode_feature(feature)
+        if location:
+            return location
+
+    raise RoutingError('Mapbox reverse geocoding response did not include a usable location')
+
+
 def _get_access_token() -> str:
     token = os.environ.get('MAPBOX_ACCESS_TOKEN')
     if not token:
@@ -129,6 +220,55 @@ def _format_leg(leg: dict) -> dict:
             for step in steps
         ],
     }
+
+
+def _format_reverse_geocode_feature(feature: dict) -> str | None:
+    properties = feature.get('properties') or {}
+    context = properties.get('context') or {}
+    place = _context_name(context, 'place') or _context_name(context, 'locality')
+    region = _region_code(context)
+
+    if not place and properties.get('feature_type') in ('place', 'locality'):
+        place = properties.get('name_preferred') or properties.get('name')
+
+    if place and region:
+        return f'{place}, {region}'
+
+    return properties.get('place_formatted') or properties.get('full_address')
+
+
+def _context_name(context: dict, key: str) -> str | None:
+    value = context.get(key)
+    if isinstance(value, dict):
+        name = value.get('name') or value.get('name_preferred')
+        return str(name) if name else None
+    return None
+
+
+def _region_code(context: dict) -> str | None:
+    region = context.get('region')
+    if not isinstance(region, dict):
+        return None
+
+    region_code = region.get('region_code') or region.get('short_code') or region.get('region_code_full')
+    if not region_code:
+        return None
+
+    code = str(region_code).upper()
+    return code.split('-')[-1]
+
+
+def _haversine_miles(start: list[float], end: list[float]) -> float:
+    start_longitude, start_latitude = radians(float(start[0])), radians(float(start[1]))
+    end_longitude, end_latitude = radians(float(end[0])), radians(float(end[1]))
+    longitude_delta = end_longitude - start_longitude
+    latitude_delta = end_latitude - start_latitude
+    value = sin(latitude_delta / 2) ** 2 + cos(start_latitude) * cos(end_latitude) * sin(longitude_delta / 2) ** 2
+    return 2 * EARTH_RADIUS_MILES * asin(sqrt(value))
+
+
+def _route_mile_label(route_mile: float) -> str:
+    return f'near route mile {round(route_mile)}'
 
 
 def _is_coordinate_pair(value) -> bool:

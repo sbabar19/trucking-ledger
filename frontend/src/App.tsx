@@ -28,7 +28,7 @@ import type {
   TripPlanRequest,
   TripPlanResponse,
 } from "@/types";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 interface PlannerLocationState {
@@ -52,6 +52,7 @@ function App() {
     useState<PlannerLocations>(DEFAULT_LOCATIONS);
   const [currentCycleUsed, setCurrentCycleUsed] = useState(DEFAULT_CYCLE_USED);
   const [result, setResult] = useState<TripPlanResponse | null>(null);
+  const [selectedLogDayIndex, setSelectedLogDayIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -85,6 +86,7 @@ function App() {
 
     try {
       setResult(await planTrip(request));
+      setSelectedLogDayIndex(0);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Trip planning failed",
@@ -114,6 +116,8 @@ function App() {
   };
 
   const lastLogDay = result?.schedule.days.at(-1);
+  const selectedLogDay = result?.schedule.days[selectedLogDayIndex];
+  const logDayCount = result?.schedule.days.length ?? 0;
   const cycleUsed = lastLogDay?.recap.cycle_used_end ?? null;
   const cycleRemaining = lastLogDay?.recap.cycle_available_end ?? null;
   const locationSummary: LocationSelectionMap = {
@@ -337,21 +341,55 @@ function App() {
                 stops={result.schedule.stops}
               />
               <Card className="dashboard-card rounded-2xl" aria-label="Daily log sheets">
-                <CardHeader>
-                  <CardDescription className="section-kicker-card">Filled records</CardDescription>
-                  <CardTitle className="section-title">
-                    Daily log sheets
-                  </CardTitle>
+                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                  <div>
+                    <CardDescription className="section-kicker-card">Filled records</CardDescription>
+                    <CardTitle className="section-title">
+                      Daily log sheets
+                    </CardTitle>
+                  </div>
+                  <div className="log-day-controls" aria-label="Log day navigation">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-9 rounded-full"
+                      disabled={selectedLogDayIndex === 0}
+                      aria-label="Previous log day"
+                      onClick={() =>
+                        setSelectedLogDayIndex((dayIndex) => Math.max(dayIndex - 1, 0))
+                      }
+                    >
+                      <ChevronLeftIcon />
+                    </Button>
+                    <span>
+                      Day {selectedLogDayIndex + 1} of {logDayCount}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-9 rounded-full"
+                      disabled={selectedLogDayIndex >= logDayCount - 1}
+                      aria-label="Next log day"
+                      onClick={() =>
+                        setSelectedLogDayIndex((dayIndex) =>
+                          Math.min(dayIndex + 1, logDayCount - 1),
+                        )
+                      }
+                    >
+                      <ChevronRightIcon />
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-6 print:block">
-                    {result.schedule.days.map((day) => (
+                  <div className="log-sheet-scroll grid gap-6 print:block">
+                    {selectedLogDay ? (
                       <LogSheet
-                        key={day.day}
-                        day={day}
-                        stops={result.schedule.stops}
+                        key={selectedLogDay.day}
+                        day={selectedLogDay}
                       />
-                    ))}
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>
