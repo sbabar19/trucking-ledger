@@ -14,7 +14,6 @@ DRIVING_WINDOW_HOURS = 14.0
 BREAK_DRIVING_LIMIT_HOURS = 8.0
 THIRTY_MINUTE_BREAK_HOURS = 0.5
 TEN_HOUR_BREAK_HOURS = 10.0
-TEN_HOUR_BREAK_OFF_DUTY_HOURS = 1.5
 RESTART_HOURS = 34.0
 FUEL_INTERVAL_MILES = 1000.0
 FUEL_DURATION_HOURS = 0.25
@@ -121,12 +120,9 @@ def _drive_leg(events: list[DutyEvent], stops: list[dict], state: dict, leg: Tri
 
 
 def _legal_drive_chunk(events: list[DutyEvent], stops: list[dict], state: dict, target_duration: float) -> float:
-    if state['cycle_used'] >= CYCLE_LIMIT_HOURS - EPSILON:
+    remaining_cycle = CYCLE_LIMIT_HOURS - state['cycle_used']
+    if remaining_cycle <= EPSILON:
         _insert_restart(events, stops, state)
-        return 0.0
-
-    if state['driving_since_break'] >= BREAK_DRIVING_LIMIT_HOURS - EPSILON:
-        _insert_thirty_minute_break(events, stops, state)
         return 0.0
 
     remaining_window = state['duty_start'] + DRIVING_WINDOW_HOURS - state['hour']
@@ -135,22 +131,21 @@ def _legal_drive_chunk(events: list[DutyEvent], stops: list[dict], state: dict, 
         _insert_ten_hour_break(events, stops, state)
         return 0.0
 
+    if state['driving_since_break'] >= BREAK_DRIVING_LIMIT_HOURS - EPSILON:
+        _insert_thirty_minute_break(events, stops, state)
+        return 0.0
+
     chunk = min(
         target_duration,
         BREAK_DRIVING_LIMIT_HOURS - state['driving_since_break'],
         remaining_daily_driving,
         remaining_window,
+        remaining_cycle,
     )
-    if state['cycle_used'] + chunk > CYCLE_LIMIT_HOURS + EPSILON:
-        _insert_restart(events, stops, state)
-        return 0.0
     return chunk
 
 
 def _add_service_event(events: list[DutyEvent], stops: list[dict], state: dict, stop_type: str, remarks: str, location: str) -> None:
-    if state['cycle_used'] + SERVICE_DURATION_HOURS > CYCLE_LIMIT_HOURS + EPSILON:
-        _insert_restart(events, stops, state)
-
     start_hour = state['hour']
     end_hour = start_hour + SERVICE_DURATION_HOURS
     _add_event(events, ON_DUTY, start_hour, end_hour, remarks, location)
@@ -166,9 +161,6 @@ def _add_service_event(events: list[DutyEvent], stops: list[dict], state: dict, 
 
 
 def _add_fuel_event(events: list[DutyEvent], stops: list[dict], state: dict) -> None:
-    if state['cycle_used'] + FUEL_DURATION_HOURS > CYCLE_LIMIT_HOURS + EPSILON:
-        _insert_restart(events, stops, state)
-
     route_mile = int(round(state['next_fuel_mile']))
     location = _route_location(state, f'near route mile {route_mile}')
     start_hour = state['hour']
@@ -202,10 +194,8 @@ def _insert_thirty_minute_break(events: list[DutyEvent], stops: list[dict], stat
 def _insert_ten_hour_break(events: list[DutyEvent], stops: list[dict], state: dict) -> None:
     start_hour = state['hour']
     end_hour = start_hour + TEN_HOUR_BREAK_HOURS
-    sleeper_start_hour = start_hour + TEN_HOUR_BREAK_OFF_DUTY_HOURS
     location = _route_location(state, 'break location')
-    _add_event(events, OFF_DUTY, start_hour, sleeper_start_hour, 'Required 10-hour break', location)
-    _add_event(events, SLEEPER_BERTH, sleeper_start_hour, end_hour, 'Sleeper berth rest', location)
+    _add_event(events, OFF_DUTY, start_hour, end_hour, 'Required 10-hour break', location)
     stops.append({
         'type': 'rest',
         'hour': _round_hour(start_hour),
@@ -222,7 +212,7 @@ def _insert_restart(events: list[DutyEvent], stops: list[dict], state: dict) -> 
     start_hour = state['hour']
     end_hour = start_hour + RESTART_HOURS
     location = _route_location(state, 'restart location')
-    _add_event(events, OFF_DUTY, start_hour, end_hour, 'Required 34-hour restart', location)
+    _add_event(events, OFF_DUTY, start_hour, end_hour, '34-hour restart', location)
     stops.append({
         'type': 'restart',
         'hour': _round_hour(start_hour),
@@ -269,20 +259,51 @@ def _build_days(events: list[DutyEvent], current_cycle_used: float, day_miles: d
                 continue
 
             if event.start_hour > cursor + EPSILON:
-                _append_day_segment(segments, totals, OFF_DUTY, cursor, min(event.start_hour, day_end), 'Off duty', cursor_location)
+                _append_day_segment(
+                    segments,
+                    totals,
+                    OFF_DUTY,
+                    cursor,
+                    min(event.start_hour, day_end),
+                    'Off duty',
+                    cursor_location,
+                    cursor > day_start + EPSILON and _is_status_change(segments, OFF_DUTY),
+                )
 
             segment_start = max(event.start_hour, day_start)
             segment_end = min(event.end_hour, day_end)
-            _append_day_segment(segments, totals, event.status, segment_start, segment_end, event.remarks, event.location)
+            _append_day_segment(
+                segments,
+                totals,
+                event.status,
+                segment_start,
+                segment_end,
+                event.remarks,
+                event.location,
+                (
+                    event.start_hour > EPSILON
+                    and abs(event.start_hour - segment_start) <= EPSILON
+                    and _is_status_change(segments, event.status)
+                ),
+            )
             if event.status in (DRIVING, ON_DUTY):
                 cycle_used += segment_end - segment_start
-            if event.remarks == 'Required 34-hour restart' and segment_end >= event.end_hour - EPSILON:
+            if event.remarks == '34-hour restart' and segment_end >= event.end_hour - EPSILON:
                 cycle_used = 0.0
             cursor = max(cursor, segment_end)
             cursor_location = event.location
 
         if cursor < day_end - EPSILON:
-            _append_day_segment(segments, totals, OFF_DUTY, cursor, day_end, 'Off duty', cursor_location)
+            _append_day_segment(
+                segments,
+                totals,
+                OFF_DUTY,
+                cursor,
+                day_end,
+                'Off duty',
+                cursor_location,
+                cursor > day_start + EPSILON and _is_status_change(segments, OFF_DUTY),
+            )
 
         rounded_totals = _rounded_totals(totals)
         days.append({
@@ -315,7 +336,16 @@ def _add_driving_miles(day_miles: dict[int, float], start_hour: float, end_hour:
         cursor = segment_end
 
 
-def _append_day_segment(segments: list[dict], totals: dict, status: str, start_hour: float, end_hour: float, remarks: str, location: str) -> None:
+def _append_day_segment(
+    segments: list[dict],
+    totals: dict,
+    status: str,
+    start_hour: float,
+    end_hour: float,
+    remarks: str,
+    location: str,
+    is_status_change: bool,
+) -> None:
     if end_hour <= start_hour + EPSILON:
         return
 
@@ -326,8 +356,13 @@ def _append_day_segment(segments: list[dict], totals: dict, status: str, start_h
         'end': _round_hour(end_hour - day_start),
         'remarks': remarks,
         'location': location,
+        'is_status_change': is_status_change,
     })
     totals[status] += end_hour - start_hour
+
+
+def _is_status_change(segments: list[dict], status: str) -> bool:
+    return not segments or segments[-1]['status'] != status
 
 
 def _rounded_totals(totals: dict) -> dict:

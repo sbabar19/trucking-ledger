@@ -20,7 +20,8 @@ const graphBottom = graphTop + rowHeight * 4;
 const remarksAxisY = graphBottom + 28;
 const remarksBracketY = remarksAxisY + 40;
 const remarksTextY = remarksAxisY + 160;
-const svgHeight = remarksTextY + 112;
+const minSvgHeight = remarksTextY + 112;
+const remarkLaneGap = 28;
 const remarkLeaderRun = 94;
 const maxProngDurationHours = 2;
 const rowCenters: Record<DutyStatus, number> = {
@@ -48,6 +49,10 @@ export function LogSheet({ day }: LogSheetProps) {
     (segment) => segment.end > segment.start,
   );
   const remarkEntries = getRemarkEntries(day.segments);
+  const graphSvgHeight = Math.max(
+    minSvgHeight,
+    remarksTextY + Math.max(remarkEntries.length, 2) * remarkLaneGap + 96,
+  );
   const totalHours = Object.values(day.totals).reduce(
     (sum, value) => sum + value,
     0,
@@ -98,11 +103,11 @@ export function LogSheet({ day }: LogSheetProps) {
       <section className="paper-log-graph-wrap" aria-label="Duty status graph">
         <svg
           className="log-graph"
-          viewBox={`0 0 1080 ${svgHeight}`}
+          viewBox={`0 0 1080 ${graphSvgHeight}`}
           role="img"
           aria-label={`${day.label} 24-hour duty status graph`}
         >
-          <rect x="0" y="0" width="1080" height={svgHeight} fill="#ffffff" />
+          <rect x="0" y="0" width="1080" height={graphSvgHeight} fill="#ffffff" />
           {labeledHours.map((hour) => (
             <text
               key={hour}
@@ -111,7 +116,7 @@ export function LogSheet({ day }: LogSheetProps) {
               textAnchor={hour === 0 ? "start" : "middle"}
               className="log-hour-label"
             >
-              {hour === 0 ? "Midnight" : hour === 12 ? "Noon" : hour}
+              {formatHourLabel(hour)}
             </text>
           ))}
           <text x={totalsLeft} y={labelTop - 7} className="log-total-heading">
@@ -259,7 +264,7 @@ export function LogSheet({ day }: LogSheetProps) {
               textAnchor={hour === 0 ? "start" : "middle"}
               className="log-remark-hour"
             >
-              {formatRemarksHour(hour)}
+              {formatHourLabel(hour)}
             </text>
           ))}
           <line
@@ -286,16 +291,14 @@ export function LogSheet({ day }: LogSheetProps) {
             );
           })}
 
-          {remarkEntries.slice(0, 12).map((entry, index) => {
+          {remarkEntries.map((entry, index) => {
             const startX = xForHour(entry.start);
             const endX = xForHour(entry.end);
-            const bracketEndX = entry.isShortEvent
-              ? Math.max(endX, startX + 26)
-              : startX;
+            const bracketEndX = entry.isShortEvent ? endX : startX;
             const elbowX = startX;
             const elbowY = remarksBracketY;
             const leaderEndX = remarkMarkerX(entry.start, index);
-            const leaderEndY = remarksTextY + (index % 2) * 16;
+            const leaderEndY = remarksTextY + index * remarkLaneGap;
             const leaderVectorX = elbowX - leaderEndX;
             const leaderVectorY = elbowY - leaderEndY;
             const leaderLength = Math.hypot(leaderVectorX, leaderVectorY);
@@ -381,23 +384,16 @@ function PaperField({ label, value, className = "" }: PaperFieldProps) {
 function getRemarkEntries(segments: LogSegment[]) {
   return segments
     .filter((segment, index) => {
-      if (
-        segment.start <= 0 ||
-        (index > 0 && segment.status === segments[index - 1].status)
-      ) {
-        return false;
-      }
-
-      if (segments[index - 1]?.location === segment.location) {
+      if (isResumeAfterShortSameLocationStop(segments, index)) {
         return false;
       }
 
       const detail = formatRemarkDetail(segment.remarks);
-      if (detail) {
+      if (segment.is_status_change || (detail && segment.start > 0)) {
         return true;
       }
 
-      return isInitialLocationEntry(segments, index);
+      return false;
     })
     .map((segment) => {
       const detail = formatRemarkDetail(segment.remarks);
@@ -406,9 +402,32 @@ function getRemarkEntries(segments: LogSegment[]) {
         end: segment.end,
         location: formatRemarkLocation(segment.location),
         purpose: detail,
-        isShortEvent: segment.end - segment.start >= 0.5 && segment.end - segment.start <= maxProngDurationHours,
+        isShortEvent:
+          segment.status !== "driving" &&
+          segment.end > segment.start &&
+          segment.end - segment.start <= maxProngDurationHours,
       };
     });
+}
+
+function isResumeAfterShortSameLocationStop(segments: LogSegment[], index: number): boolean {
+  const segment = segments[index];
+  const previousSegment = segments[index - 1];
+  if (!previousSegment || !segment.is_status_change) {
+    return false;
+  }
+
+  const previousDetail = formatRemarkDetail(previousSegment.remarks);
+  const segmentDetail = formatRemarkDetail(segment.remarks);
+  return (
+    !segmentDetail &&
+    previousDetail.length > 0 &&
+    previousSegment.status !== "driving" &&
+    previousSegment.end > previousSegment.start &&
+    previousSegment.end - previousSegment.start <= maxProngDurationHours &&
+    Math.abs(segment.start - previousSegment.end) < 0.01 &&
+    segment.location === previousSegment.location
+  );
 }
 
 function formatRemarkLocation(location: string): string {
@@ -429,16 +448,6 @@ function formatRemarkLocation(location: string): string {
   return trimmedLocation;
 }
 
-function isInitialLocationEntry(segments: LogSegment[], index: number): boolean {
-  const segment = segments[index];
-  const previousSegments = segments.slice(0, index);
-  return (
-    segment.status === "driving" &&
-    previousSegments.length > 0 &&
-    previousSegments.every((previousSegment) => previousSegment.status === "off_duty")
-  );
-}
-
 function formatRemarkDetail(remark: string): string {
   const normalizedRemark = remark.trim().toLowerCase();
   if (!normalizedRemark || normalizedRemark === "off duty" || normalizedRemark.startsWith("drive toward")) {
@@ -450,7 +459,10 @@ function formatRemarkDetail(remark: string): string {
   if (normalizedRemark === "required 10-hour break") {
     return "10 hour break";
   }
-  if (normalizedRemark === "required 34-hour restart") {
+  if (
+    normalizedRemark === "34-hour restart" ||
+    normalizedRemark === "required 34-hour restart"
+  ) {
     return "34 hour restart";
   }
   return remark;
@@ -471,14 +483,14 @@ function remarkMarkerX(hour: number, index: number): number {
   );
 }
 
-function formatRemarksHour(hour: number): string {
+function formatHourLabel(hour: number): string {
   if (hour === 0) {
     return "Midnight";
   }
   if (hour === 12) {
-    return "noon";
+    return "Noon";
   }
-  return String(hour > 12 ? hour - 12 : hour);
+  return String(hour);
 }
 
 function formatHours(value: number): string {

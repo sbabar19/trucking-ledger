@@ -53,6 +53,7 @@ export interface LogSegment {
   end: number;
   remarks: string;
   location: string;
+  is_status_change: boolean;
 }
 
 export interface DutyStatusTotals {

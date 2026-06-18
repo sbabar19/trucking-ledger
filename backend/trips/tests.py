@@ -70,6 +70,31 @@ class HOSTests(TestCase):
         self.assertTrue(driving_after_break)
         self.assertIn('location', schedule['days'][0]['segments'][0])
 
+    def test_one_hour_service_event_satisfies_thirty_minute_break_requirement(self):
+        schedule = build_schedule([
+            TripLeg('pickup', 480, 8, 'A', 'B'),
+            TripLeg('dropoff', 60, 1, 'B', 'C'),
+        ], current_cycle_used=0)
+
+        self.assertNotIn(
+            'Required 30-minute break',
+            [event['remarks'] for event in schedule['events']],
+        )
+        self.assertIn('Pickup', [event['remarks'] for event in schedule['events']])
+
+    def test_fifteen_minute_fuel_stop_does_not_satisfy_thirty_minute_break_requirement(self):
+        schedule = build_schedule([
+            TripLeg('pickup', 1200, 9.6, 'A', 'B'),
+            TripLeg('dropoff', 60, 1, 'B', 'C'),
+        ], current_cycle_used=0)
+
+        fuel = [event for event in schedule['events'] if event['remarks'] == 'Fueling'][0]
+        break_event = [event for event in schedule['events'] if event['remarks'] == 'Required 30-minute break'][0]
+
+        self.assertEqual(fuel['end_hour'] - fuel['start_hour'], 0.25)
+        self.assertEqual(break_event['start_hour'], fuel['end_hour'])
+        self.assertEqual(break_event['end_hour'] - break_event['start_hour'], 0.5)
+
     def test_trip_over_eleven_hours_inserts_ten_hour_break(self):
         schedule = build_schedule([
             TripLeg('pickup', 60, 1, 'A', 'B'),
@@ -77,14 +102,12 @@ class HOSTests(TestCase):
         ], current_cycle_used=0)
 
         breaks = [event for event in schedule['events'] if event['remarks'] == 'Required 10-hour break']
-        sleeper_breaks = [event for event in schedule['events'] if event['remarks'] == 'Sleeper berth rest']
+        thirty_minute_breaks = [event for event in schedule['events'] if event['remarks'] == 'Required 30-minute break']
         self.assertTrue(breaks)
-        self.assertTrue(sleeper_breaks)
+        self.assertTrue(thirty_minute_breaks)
         self.assertEqual(breaks[0]['status'], 'off_duty')
-        self.assertEqual(sleeper_breaks[0]['status'], 'sleeper_berth')
-        self.assertEqual(breaks[0]['end_hour'] - breaks[0]['start_hour'], 1.5)
-        self.assertEqual(sleeper_breaks[0]['end_hour'] - sleeper_breaks[0]['start_hour'], 8.5)
-        self.assertEqual(sleeper_breaks[0]['start_hour'], breaks[0]['end_hour'])
+        self.assertEqual(breaks[0]['end_hour'] - breaks[0]['start_hour'], 10.0)
+        self.assertNotIn('Sleeper berth rest', [event['remarks'] for event in schedule['events']])
 
     def test_trip_over_one_thousand_miles_inserts_fuel_stop(self):
         schedule = build_schedule([
@@ -106,11 +129,66 @@ class HOSTests(TestCase):
             TripLeg('dropoff', 60, 1, 'B', 'C'),
         ], current_cycle_used=69.5)
 
-        restart = [event for event in schedule['events'] if event['remarks'] == 'Required 34-hour restart']
+        restart = [event for event in schedule['events'] if event['remarks'] == '34-hour restart']
         restart_stops = [stop for stop in schedule['stops'] if stop['type'] == 'restart']
         self.assertTrue(restart)
         self.assertTrue(restart_stops)
         self.assertEqual(restart[0]['end_hour'] - restart[0]['start_hour'], 34.0)
+        self.assertEqual(restart[0]['start_hour'], 6.5)
+        driving_before_restart = [
+            event for event in schedule['events']
+            if event['status'] == 'driving' and event['end_hour'] <= restart[0]['start_hour']
+        ]
+        self.assertTrue(driving_before_restart)
+        self.assertEqual(driving_before_restart[-1]['end_hour'] - driving_before_restart[-1]['start_hour'], 0.5)
+
+    def test_service_time_can_exceed_seventy_before_next_driving_restart(self):
+        schedule = build_schedule([
+            TripLeg('pickup', 30, 0.5, 'A', 'B'),
+            TripLeg('dropoff', 60, 1, 'B', 'C'),
+        ], current_cycle_used=69.5)
+
+        pickup = [event for event in schedule['events'] if event['remarks'] == 'Pickup'][0]
+        restart = [event for event in schedule['events'] if event['remarks'] == '34-hour restart'][0]
+
+        self.assertEqual(pickup['status'], 'on_duty')
+        self.assertEqual(pickup['start_hour'], 6.5)
+        self.assertEqual(restart['start_hour'], pickup['end_hour'])
+
+    def test_day_segments_mark_status_changes_for_remarks(self):
+        schedule = build_schedule([
+            TripLeg('pickup', 120, 2, 'Dallas, TX', 'Austin, TX'),
+            TripLeg('dropoff', 180, 3, 'Austin, TX', 'Houston, TX'),
+        ], current_cycle_used=12.5)
+
+        status_changes = [
+            segment
+            for segment in schedule['days'][0]['segments']
+            if segment['is_status_change']
+        ]
+
+        self.assertTrue(status_changes)
+        self.assertEqual(status_changes[0]['remarks'], 'Drive toward pickup')
+        self.assertIn('Pickup', [segment['remarks'] for segment in status_changes])
+        self.assertIn('Dropoff', [segment['remarks'] for segment in status_changes])
+
+    def test_same_location_duty_status_changes_are_remarks_entries(self):
+        schedule = build_schedule([
+            TripLeg('pickup', 0, 0, 'Austin, TX', 'Austin, TX'),
+            TripLeg('dropoff', 30, 0.5, 'Austin, TX', 'Austin, TX'),
+        ], current_cycle_used=0)
+
+        day_segments = schedule['days'][0]['segments']
+        same_location_changes = [
+            segment for segment in day_segments
+            if segment['location'] == 'Austin, TX' and segment['is_status_change']
+        ]
+
+        self.assertEqual(len(same_location_changes), 4)
+        self.assertEqual(
+            [segment['remarks'] for segment in same_location_changes],
+            ['Pickup', 'Drive toward dropoff', 'Dropoff', 'Off duty'],
+        )
 
     def test_multi_day_trip_totals_sum_to_twenty_four_hours(self):
         schedule = build_schedule([
