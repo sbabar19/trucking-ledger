@@ -6,6 +6,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   searchLocationSuggestions,
@@ -106,7 +111,7 @@ export function LocationInput({
     (suggestions.length > 0 || isSearching || Boolean(searchError));
 
   return (
-    <Field className="relative">
+    <Field>
       <FieldContent>
         <div className="flex items-center justify-between gap-2">
           <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -115,76 +120,81 @@ export function LocationInput({
           </Badge>
         </div>
       </FieldContent>
-      <Input
-        id={id}
-        value={value}
-        onFocus={() => {
-          setIsFocused(true);
-          setIsOpen(true);
-          onActivate();
-        }}
-        onBlur={() => {
-          blurTimeout.current = window.setTimeout(() => {
-            setIsFocused(false);
-            setIsOpen(false);
-          }, 120);
-        }}
-        onChange={(event) => {
-          const nextValue = event.target.value;
-          onChange(nextValue);
-          if (nextValue.trim().length < 3) {
-            setSuggestions([]);
-            setIsSearching(false);
-            setSearchError("");
-          }
-          setIsOpen(true);
-        }}
-        placeholder={label}
-        autoComplete="off"
-        spellCheck={false}
-        aria-autocomplete="list"
-        aria-expanded={showSuggestions ? "true" : "false"}
-        aria-controls={`${id}-suggestions`}
-      />
-      {showSuggestions ? (
-        <ScrollArea
-          className="absolute top-full z-10 mt-2 max-h-64 w-full rounded-xl border bg-popover p-2 shadow-md"
-          id={`${id}-suggestions`}
-          role="listbox"
+      <Popover open={showSuggestions} onOpenChange={(open) => !open && setIsOpen(false)}>
+        <PopoverAnchor asChild>
+          <Input
+            id={id}
+            value={value}
+            onFocus={() => {
+              setIsFocused(true);
+              setIsOpen(true);
+              onActivate();
+            }}
+            onBlur={() => {
+              blurTimeout.current = window.setTimeout(() => {
+                setIsFocused(false);
+                setIsOpen(false);
+              }, 120);
+            }}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              onChange(nextValue);
+              if (nextValue.trim().length < 3) {
+                setSuggestions([]);
+                setIsSearching(false);
+                setSearchError("");
+              }
+              setIsOpen(true);
+            }}
+            placeholder={label}
+            autoComplete="off"
+            spellCheck={false}
+            aria-autocomplete="list"
+            aria-expanded={showSuggestions ? "true" : "false"}
+            aria-controls={`${id}-suggestions`}
+          />
+        </PopoverAnchor>
+        <PopoverContent
+          align="start"
+          className="w-[max(var(--radix-popover-trigger-width),20rem)] max-w-[calc(100vw-2rem)] p-1"
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onOpenAutoFocus={(event) => event.preventDefault()}
         >
-          <div className="flex flex-col gap-1">
-            {isSearching ? (
-              <FieldDescription className="px-3 py-2">
-                Searching Mapbox...
-              </FieldDescription>
-            ) : null}
-            {searchError ? (
-              <FieldDescription className="px-3 py-2 text-destructive">
-                {searchError}
-              </FieldDescription>
-            ) : null}
-            {suggestions.map((suggestion) => (
-              <button
-                key={`${suggestion.label}-${suggestion.coordinates[0]}-${suggestion.coordinates[1]}`}
-                type="button"
-                className="rounded-lg px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onSelectSuggestion(suggestion);
-                  setIsFocused(false);
-                  setIsOpen(false);
-                  setSuggestions([]);
-                }}
-              >
-                <span className="block font-medium">{suggestion.label}</span>
-                <span className="block text-muted-foreground">
-                  {suggestion.subtitle}
-                </span>
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
-      ) : null}
+          <ScrollArea id={`${id}-suggestions`} className="h-64" role="listbox">
+            <div className="flex flex-col gap-1">
+              {isSearching ? (
+                <FieldDescription className="px-3 py-2">
+                  Searching Mapbox...
+                </FieldDescription>
+              ) : null}
+              {searchError ? (
+                <FieldDescription className="px-3 py-2 text-destructive">
+                  {searchError}
+                </FieldDescription>
+              ) : null}
+              {suggestions.map((suggestion) => (
+                <button
+                  key={`${suggestion.label}-${suggestion.coordinates[0]}-${suggestion.coordinates[1]}`}
+                  type="button"
+                  className="rounded-lg px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    onSelectSuggestion(suggestion);
+                    setIsFocused(false);
+                    setIsOpen(false);
+                    setSuggestions([]);
+                  }}
+                >
+                  <span className="block font-medium">{suggestion.label}</span>
+                  <span className="block text-muted-foreground">
+                    {suggestion.subtitle}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        </PopoverContent>
+      </Popover>
     </Field>
   );
 }
