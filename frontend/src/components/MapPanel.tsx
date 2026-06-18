@@ -47,9 +47,9 @@ const routeLineLayer: LayerProps = {
     "line-join": "round",
   },
   paint: {
-    "line-color": "#22d3ee",
-    "line-width": 5,
-    "line-opacity": 0.9,
+    "line-color": "#b77926",
+    "line-width": 4.5,
+    "line-opacity": 0.92,
   },
 };
 
@@ -112,7 +112,7 @@ export function MapPanel({ locations, route }: MapPanelProps) {
   }
 
   return (
-    <div className="dashboard-card h-[min(52vh,520px)] min-h-[340px] overflow-hidden rounded-2xl bg-muted p-1 shadow-sm ring-1 ring-border max-[900px]:min-h-[310px] max-[560px]:min-h-[260px]">
+    <div className="map-panel dashboard-card h-[min(52vh,520px)] min-h-[340px] overflow-hidden rounded-[1.25rem] bg-card p-1.5 shadow-none ring-1 ring-border/80 max-[900px]:min-h-[310px] max-[560px]:min-h-[260px]">
       <Map
         ref={mapRef}
         initialViewState={{
@@ -121,8 +121,8 @@ export function MapPanel({ locations, route }: MapPanelProps) {
           zoom: 3.2,
         }}
         mapboxAccessToken={mapboxToken}
-        mapStyle="mapbox://styles/mapbox/navigation-night-v1"
-          style={{ width: "100%", height: "100%", borderRadius: "1rem" }}
+        mapStyle="mapbox://styles/mapbox/light-v11"
+        style={{ width: "100%", height: "100%", borderRadius: "0.95rem" }}
       >
         <NavigationControl position="top-right" />
         {routeFeature ? (
@@ -160,7 +160,10 @@ export function MapPanel({ locations, route }: MapPanelProps) {
 
 function MapFallback({ route }: Pick<MapPanelProps, "route">) {
   return (
-    <Card className="dashboard-card rounded-2xl print:hidden" aria-label="Route map fallback">
+    <Card
+      className="dashboard-card rounded-[1.25rem] shadow-none ring-1 ring-border/80 print:hidden"
+      aria-label="Route map fallback"
+    >
       <CardContent>
         <Empty>
           <EmptyHeader>

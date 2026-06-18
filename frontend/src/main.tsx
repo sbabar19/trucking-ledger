@@ -1,4 +1,4 @@
-import "@fontsource/inter";
+import "@fontsource-variable/geist/index.css";
 import "@fontsource/jetbrains-mono";
 import "@fontsource/source-serif-4";
 

@@ -3,6 +3,7 @@ import {
   Field,
   FieldContent,
   FieldDescription,
+  FieldError,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ interface LocationInputProps {
   accessToken?: string;
   className?: string;
   inputClassName?: string;
+  error?: string;
   onChange: (value: string) => void;
   onSelectSuggestion: (suggestion: LocationSuggestion) => void;
 }
@@ -39,6 +41,7 @@ export function LocationInput({
   accessToken,
   className,
   inputClassName,
+  error,
   onChange,
   onSelectSuggestion,
 }: LocationInputProps) {
@@ -101,13 +104,14 @@ export function LocationInput({
   );
 
   const statusText = coordinates ? formatCoordinates(coordinates) : "";
+  const hasError = Boolean(error);
   const showSuggestions =
     canSearch &&
     isOpen &&
     (suggestions.length > 0 || isSearching || Boolean(searchError));
 
   return (
-    <Field className={className}>
+    <Field className={className} data-invalid={hasError || undefined}>
       <FieldContent>
         <div className="flex items-center justify-between gap-2">
           <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -147,12 +151,14 @@ export function LocationInput({
               }
               setIsOpen(true);
             }}
-            placeholder={label}
+            placeholder="City, state, or address"
             autoComplete="off"
             spellCheck={false}
             aria-autocomplete="list"
             aria-expanded={showSuggestions ? "true" : "false"}
             aria-controls={`${id}-suggestions`}
+            aria-describedby={hasError ? `${id}-error` : undefined}
+            aria-invalid={hasError || undefined}
           />
         </PopoverAnchor>
         <PopoverContent
@@ -177,7 +183,7 @@ export function LocationInput({
                 <button
                   key={`${suggestion.label}-${suggestion.coordinates[0]}-${suggestion.coordinates[1]}`}
                   type="button"
-                  className="rounded-lg px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                  className="rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
                   onMouseDown={(event) => {
                     event.preventDefault();
                     onSelectSuggestion(suggestion);
@@ -196,6 +202,7 @@ export function LocationInput({
           </ScrollArea>
         </PopoverContent>
       </Popover>
+      <FieldError id={`${id}-error`}>{error}</FieldError>
     </Field>
   );
 }

@@ -31,11 +31,11 @@ interface TimelineProps {
 export function Timeline({ instructions, stops }: TimelineProps) {
   return (
     <section
-      className="grid items-stretch grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] gap-6 print:hidden max-[1120px]:grid-cols-1"
+      className="grid items-stretch grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] gap-5 print:hidden max-[1120px]:grid-cols-1"
       aria-label="Route timeline"
     >
-      <Card className="dashboard-card h-full rounded-2xl shadow-sm">
-        <CardHeader>
+      <Card className="dashboard-card h-full rounded-[1.25rem] shadow-none ring-1 ring-border/80">
+        <CardHeader className="gap-2">
           <CardDescription className="section-kicker-card">Turn-by-turn</CardDescription>
           <CardTitle className="section-title">
             Route instructions
@@ -84,8 +84,8 @@ export function Timeline({ instructions, stops }: TimelineProps) {
         </CardContent>
       </Card>
 
-      <Card className="dashboard-card h-full rounded-2xl shadow-sm">
-        <CardHeader>
+      <Card className="dashboard-card h-full rounded-[1.25rem] shadow-none ring-1 ring-border/80">
+        <CardHeader className="gap-2">
           <CardDescription className="section-kicker-card">Schedule</CardDescription>
           <CardTitle className="section-title">
             Stops and rests

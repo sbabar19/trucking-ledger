@@ -16,7 +16,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -34,7 +39,7 @@ import {
   ChevronRightIcon,
   PrinterIcon,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 
 interface PlannerLocationState {
   value: string;
@@ -42,6 +47,8 @@ interface PlannerLocationState {
 }
 
 type PlannerLocations = Record<LocationFieldKey, PlannerLocationState>;
+type PlannerFieldKey = LocationFieldKey | "current_cycle_used";
+type FormErrors = Partial<Record<PlannerFieldKey, string>>;
 
 const DEFAULT_LOCATIONS: PlannerLocations = {
   current_location: { value: "Dallas, TX", coordinates: null },
@@ -50,6 +57,9 @@ const DEFAULT_LOCATIONS: PlannerLocations = {
 };
 
 const DEFAULT_CYCLE_USED = "12";
+const CYCLE_USED_MIN = 0;
+const CYCLE_USED_MAX = 70;
+const BLOCKED_CYCLE_USED_KEYS = new Set(["e", "E", "+", "-"]);
 
 function App() {
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -60,13 +70,15 @@ function App() {
   const [selectedLogDayIndex, setSelectedLogDayIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const validationMessage = validateForm(locations, currentCycleUsed);
-    if (validationMessage) {
-      setErrorMessage(validationMessage);
+    const validationErrors = validateForm(locations, currentCycleUsed);
+    if (hasFormErrors(validationErrors)) {
+      setFormErrors(validationErrors);
+      setErrorMessage("");
       return;
     }
 
@@ -88,6 +100,7 @@ function App() {
 
     setIsLoading(true);
     setErrorMessage("");
+    setFormErrors({});
 
     try {
       setResult(await planTrip(request));
@@ -110,6 +123,16 @@ function App() {
       ...previousLocations,
       [field]: { value, coordinates },
     }));
+    setFormErrors((previousErrors) => clearFormError(previousErrors, field));
+    setErrorMessage("");
+  };
+
+  const updateCurrentCycleUsed = (value: string) => {
+    setCurrentCycleUsed(constrainCycleUsedInput(value));
+    setFormErrors((previousErrors) =>
+      clearFormError(previousErrors, "current_cycle_used"),
+    );
+    setErrorMessage("");
   };
 
   const handleSuggestionSelect = (
@@ -129,6 +152,7 @@ function App() {
   const logDayCount = result?.schedule.days.length ?? 0;
   const cycleUsed = lastLogDay?.recap.cycle_used_end ?? null;
   const cycleRemaining = lastLogDay?.recap.cycle_available_end ?? null;
+  const currentCycleUsedError = formErrors.current_cycle_used;
   const locationSummary: LocationSelectionMap = {
     current_location: {
       label: locations.current_location.value,
@@ -145,34 +169,72 @@ function App() {
   };
 
   return (
-    <main className="app-shell min-h-screen overflow-hidden px-3 py-4 text-foreground sm:px-5 lg:px-7">
+    <main className="app-shell min-h-dvh overflow-hidden px-3 py-4 text-foreground sm:px-5 lg:px-8">
       <section
         className="mx-auto grid max-w-[1480px] grid-cols-1 gap-5"
         aria-label="Trip planner input"
       >
         <div>
-          <div className="booking-hero rounded-[1.75rem] px-5 pt-10 pb-24 text-center shadow-lg shadow-foreground/5 sm:pt-12 md:px-10 md:pb-28">
-            <div className="relative z-1 mx-auto flex max-w-3xl flex-col items-center gap-3">
-              <Badge
-                className="border-white/25 bg-white/15 text-white shadow-none"
-                variant="outline"
+          <div className="booking-hero rounded-[1.4rem] px-5 pt-8 pb-16 sm:px-7 sm:pt-10 md:px-10 md:pb-20">
+            <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+              <div className="flex max-w-3xl flex-col items-start gap-4 text-left">
+                <Badge
+                  className="border-foreground/10 bg-background/70 text-foreground shadow-none"
+                  variant="outline"
+                >
+                  Trucking Ledger
+                </Badge>
+                <div className="grid gap-3">
+                  <h1 className="max-w-[760px] text-balance font-sans text-4xl font-semibold leading-[0.98] tracking-[-0.055em] text-foreground sm:text-5xl lg:text-6xl">
+                    Plan a compliant trip from dispatch to delivery.
+                  </h1>
+                  <p className="max-w-[56ch] text-base leading-7 text-muted-foreground sm:text-lg">
+                    Enter the route and cycle hours; get stops, drive time, and
+                    printable daily logs.
+                  </p>
+                </div>
+              </div>
+
+              <aside
+                className="dispatch-brief rounded-2xl p-4"
+                aria-label="Current route draft"
               >
-                Trucking Ledger
-              </Badge>
-              <h1 className="max-w-3xl font-serif text-4xl leading-[1.05] tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl">
-                Plan compliant trips.
-              </h1>
+                <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-3">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Current draft
+                  </span>
+                  <Badge variant="secondary">70 hr cycle</Badge>
+                </div>
+                <dl className="mt-4 grid gap-3 text-sm">
+                  <div className="route-brief-row">
+                    <dt>Origin</dt>
+                    <dd>{locations.current_location.value}</dd>
+                  </div>
+                  <div className="route-brief-row">
+                    <dt>Pickup</dt>
+                    <dd>{locations.pickup_location.value}</dd>
+                  </div>
+                  <div className="route-brief-row">
+                    <dt>Dropoff</dt>
+                    <dd>{locations.dropoff_location.value}</dd>
+                  </div>
+                  <div className="route-brief-row">
+                    <dt>Cycle used</dt>
+                    <dd>{currentCycleUsed || "0"} hr</dd>
+                  </div>
+                </dl>
+              </aside>
             </div>
           </div>
 
-          <Card className="dashboard-card booking-search-card mx-auto max-w-[1320px] rounded-2xl bg-card py-5 shadow-xl shadow-foreground/10 ring-1 ring-foreground/10">
-            <CardContent className="px-5 sm:px-6">
+          <Card className="dashboard-card booking-search-card mx-auto max-w-[1320px] rounded-[1.25rem] bg-card py-4 shadow-none ring-1 ring-border/80">
+            <CardContent className="px-4 sm:px-5">
               <form
                 className="flex flex-col gap-5"
                 onSubmit={handleSubmit}
                 noValidate
               >
-                <FieldGroup className="booking-field-grid grid grid-cols-[repeat(3,minmax(190px,1fr))_minmax(150px,0.62fr)_auto] items-end gap-2.5 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
+                <FieldGroup className="booking-field-grid grid grid-cols-[repeat(3,minmax(190px,1fr))_minmax(150px,0.62fr)_auto] items-start gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
                   <LocationInput
                     id="current_location"
                     label="Current location"
@@ -180,7 +242,8 @@ function App() {
                     coordinates={locations.current_location.coordinates}
                     accessToken={mapboxToken}
                     className="booking-field"
-                    inputClassName="h-13 rounded-xl px-3 text-base md:text-base"
+                    inputClassName="h-12 rounded-lg bg-background/80 px-3 text-base md:text-base"
+                    error={formErrors.current_location}
                     onChange={(value) =>
                       updateLocation("current_location", value, null)
                     }
@@ -196,7 +259,8 @@ function App() {
                     coordinates={locations.pickup_location.coordinates}
                     accessToken={mapboxToken}
                     className="booking-field"
-                    inputClassName="h-13 rounded-xl px-3 text-base md:text-base"
+                    inputClassName="h-12 rounded-lg bg-background/80 px-3 text-base md:text-base"
+                    error={formErrors.pickup_location}
                     onChange={(value) =>
                       updateLocation("pickup_location", value, null)
                     }
@@ -212,7 +276,8 @@ function App() {
                     coordinates={locations.dropoff_location.coordinates}
                     accessToken={mapboxToken}
                     className="booking-field"
-                    inputClassName="h-13 rounded-xl px-3 text-base md:text-base"
+                    inputClassName="h-12 rounded-lg bg-background/80 px-3 text-base md:text-base"
+                    error={formErrors.dropoff_location}
                     onChange={(value) =>
                       updateLocation("dropoff_location", value, null)
                     }
@@ -221,26 +286,44 @@ function App() {
                     }
                   />
 
-                  <Field className="booking-field">
+                  <Field
+                    className="booking-field"
+                    data-invalid={Boolean(currentCycleUsedError) || undefined}
+                  >
                     <FieldLabel htmlFor="current-cycle-used">
                       Current cycle used
                     </FieldLabel>
                     <Input
                       id="current-cycle-used"
-                      className="h-13 rounded-xl px-3 text-base md:text-base"
+                      type="number"
+                      className="h-12 rounded-lg bg-background/80 px-3 text-base md:text-base"
                       value={currentCycleUsed}
                       onChange={(event) =>
-                        setCurrentCycleUsed(event.target.value)
+                        updateCurrentCycleUsed(event.target.value)
                       }
+                      onKeyDown={handleCycleUsedKeyDown}
                       placeholder="12"
+                      min={CYCLE_USED_MIN}
+                      max={CYCLE_USED_MAX}
+                      step="any"
                       inputMode="decimal"
+                      aria-describedby={
+                        currentCycleUsedError
+                          ? "current-cycle-used-error"
+                          : undefined
+                      }
+                      aria-invalid={Boolean(currentCycleUsedError) || undefined}
+                      required
                     />
+                    <FieldError id="current-cycle-used-error">
+                      {currentCycleUsedError}
+                    </FieldError>
                   </Field>
 
                   <Button
                     type="submit"
                     size="lg"
-                    className="h-13 min-w-32 rounded-xl px-7 text-base font-semibold max-[1180px]:col-span-2 max-[640px]:col-span-1"
+                    className="h-12 min-w-32 rounded-lg px-7 text-base font-semibold max-[1180px]:col-span-2 max-[640px]:col-span-1"
                     disabled={isLoading}
                   >
                     {isLoading ? "Planning..." : "Plan"}
@@ -263,11 +346,11 @@ function App() {
 
       {result || isLoading ? (
         <section
-          className="mx-auto mt-5 grid max-w-[1480px] min-w-0 gap-5"
+          className="mx-auto mt-6 grid max-w-[1480px] min-w-0 gap-5"
           aria-live="polite"
         >
-          <Card className="dashboard-card rounded-2xl shadow-sm">
-            <CardHeader>
+          <Card className="dashboard-card rounded-[1.25rem] shadow-none ring-1 ring-border/80">
+            <CardHeader className="gap-2 pb-2">
               <CardDescription className="section-kicker-card">Compliance summary</CardDescription>
               <CardTitle className="section-title">
                 {result ? "Plan generated" : "Awaiting dispatch request"}
@@ -315,7 +398,7 @@ function App() {
 
             {result ? (
               <CardFooter
-                className="flex flex-wrap gap-2"
+                className="flex flex-wrap gap-2 bg-muted/40"
                 aria-label="Schedule assumptions"
               >
                 {result.schedule.assumptions.map((assumption) => (
@@ -328,8 +411,11 @@ function App() {
           </Card>
 
           {isLoading ? (
-            <Card className="dashboard-card rounded-2xl" role="status">
-              <CardHeader>
+            <Card
+              className="dashboard-card rounded-[1.25rem] shadow-none ring-1 ring-border/80"
+              role="status"
+            >
+              <CardHeader className="gap-2">
                 <CardTitle>Building compliant plan</CardTitle>
                 <CardDescription>
                   Routing, stop scheduling, and daily log sheets are being
@@ -349,7 +435,10 @@ function App() {
                 instructions={result.route.instructions}
                 stops={result.schedule.stops}
               />
-              <Card className="dashboard-card rounded-2xl" aria-label="Daily log sheets">
+              <Card
+                className="dashboard-card rounded-[1.25rem] shadow-none ring-1 ring-border/80"
+                aria-label="Daily log sheets"
+              >
                 <CardHeader className="flex flex-row items-start justify-between gap-4">
                   <div>
                     <CardDescription className="section-kicker-card">Filled records</CardDescription>
@@ -362,7 +451,7 @@ function App() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="size-9 rounded-full"
+                      className="size-9 rounded-lg"
                       disabled={selectedLogDayIndex === 0}
                       aria-label="Previous log day"
                       onClick={() =>
@@ -378,7 +467,7 @@ function App() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="size-9 rounded-full"
+                      className="size-9 rounded-lg"
                       aria-label={`Print day ${selectedLogDayIndex + 1} log`}
                       disabled={!selectedLogDay}
                       onClick={handlePrintSelectedLogDay}
@@ -389,7 +478,7 @@ function App() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="size-9 rounded-full"
+                      className="size-9 rounded-lg"
                       disabled={selectedLogDayIndex >= logDayCount - 1}
                       aria-label="Next log day"
                       onClick={() =>
@@ -436,20 +525,20 @@ function Metric({
 }: MetricProps) {
   return (
     <Card
-      className={cn("metric-card min-h-38 rounded-2xl", {
+      className={cn("metric-card min-h-36 rounded-xl shadow-none", {
         "metric-card--success": tone === "success",
         "metric-card--warning": tone === "warning",
         "metric-card--danger": tone === "danger",
       })}
     >
-      <CardHeader className="h-full content-between gap-4">
-        <CardDescription className="metric-label text-xs uppercase">
+      <CardHeader className="h-full content-between gap-5">
+        <CardDescription className="metric-label text-xs">
           {label}
         </CardDescription>
         {isLoading ? (
           <Skeleton className="h-12 w-32" />
         ) : (
-          <CardTitle className="metric-value text-[2.65rem] font-bold leading-none text-foreground lg:text-[3.35rem]">
+          <CardTitle className="metric-value text-[2.35rem] font-semibold leading-none text-foreground lg:text-[2.9rem]">
             {value}
           </CardTitle>
         )}
@@ -476,21 +565,74 @@ function getCycleRemainingTone(
 function validateForm(
   locations: PlannerLocations,
   currentCycleUsed: string,
-): string {
-  if (
-    !locations.current_location.value.trim() ||
-    !locations.pickup_location.value.trim() ||
-    !locations.dropoff_location.value.trim()
-  ) {
-    return "Current, pickup, and dropoff locations are required.";
+): FormErrors {
+  const errors: FormErrors = {};
+
+  if (!locations.current_location.value.trim()) {
+    errors.current_location = "Current location is required.";
   }
 
-  const cycleUsed = Number(currentCycleUsed);
-  if (!Number.isFinite(cycleUsed) || cycleUsed < 0 || cycleUsed > 70) {
-    return "Current cycle used must be a number between 0 and 70.";
+  if (!locations.pickup_location.value.trim()) {
+    errors.pickup_location = "Pickup location is required.";
   }
 
-  return "";
+  if (!locations.dropoff_location.value.trim()) {
+    errors.dropoff_location = "Dropoff location is required.";
+  }
+
+  const cycleUsedInput = currentCycleUsed.trim();
+  const cycleUsed = Number(cycleUsedInput);
+
+  if (!cycleUsedInput) {
+    errors.current_cycle_used = "Current cycle used is required.";
+  } else if (!Number.isFinite(cycleUsed)) {
+    errors.current_cycle_used = "Current cycle used must be a number.";
+  } else if (cycleUsed < CYCLE_USED_MIN || cycleUsed > CYCLE_USED_MAX) {
+    errors.current_cycle_used = `Current cycle used must be between ${CYCLE_USED_MIN} and ${CYCLE_USED_MAX} hours.`;
+  }
+
+  return errors;
+}
+
+function constrainCycleUsedInput(value: string): string {
+  if (!value.trim()) {
+    return "";
+  }
+
+  const cycleUsed = Number(value);
+  if (!Number.isFinite(cycleUsed)) {
+    return value;
+  }
+
+  if (cycleUsed < CYCLE_USED_MIN) {
+    return String(CYCLE_USED_MIN);
+  }
+
+  if (cycleUsed > CYCLE_USED_MAX) {
+    return String(CYCLE_USED_MAX);
+  }
+
+  return value;
+}
+
+function handleCycleUsedKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  if (BLOCKED_CYCLE_USED_KEYS.has(event.key)) {
+    event.preventDefault();
+  }
+}
+
+function hasFormErrors(errors: FormErrors): boolean {
+  return Object.keys(errors).length > 0;
+}
+
+function clearFormError(errors: FormErrors, field: PlannerFieldKey): FormErrors {
+  if (!errors[field]) {
+    return errors;
+  }
+
+  const nextErrors = { ...errors };
+  delete nextErrors[field];
+  return nextErrors;
 }
 
 function formatNumber(value: number): string {
