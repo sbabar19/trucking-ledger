@@ -11,6 +11,9 @@ interface PaperFieldProps {
   className?: string;
 }
 
+// The fixed 1080-unit SVG viewBox mimics a landscape paper log. The graph
+// bounds define the 24-hour grid, and each row center is one duty-status line.
+// Remark leaders connect status-change times to their city/purpose labels.
 const graphLeft = 150;
 const graphRight = 990;
 const totalsLeft = 1026;
@@ -297,6 +300,8 @@ export function LogSheet({ day }: LogSheetProps) {
           {remarkEntries.map((entry, index) => {
             const startX = xForHour(entry.start);
             const endX = xForHour(entry.end);
+            // Short non-driving events get bracket/prong leaders so the
+            // callout marks the event span instead of a single instant.
             const bracketEndX = entry.isShortEvent ? endX : startX;
             const elbowX = startX;
             const elbowY = remarksBracketY;
