@@ -1,3 +1,4 @@
+import { formatHours, formatNumber } from "@/lib/format";
 import type { DutyStatus, LogDay, LogSegment } from "@/types";
 
 interface LogSheetProps {
@@ -84,7 +85,7 @@ export function LogSheet({ day }: LogSheetProps) {
         <PaperField label="Log day" value={day.label} />
         <PaperField
           label="Total miles driving today"
-          value={formatNumber(day.total_miles)}
+          value={formatNumber(day.total_miles, { maximumFractionDigits: 2 })}
         />
         <PaperField label="Truck / trailer numbers" />
         <PaperField label="Name of carrier" />
@@ -214,7 +215,9 @@ export function LogSheet({ day }: LogSheetProps) {
                   y={rowCenters[row.status] + 4}
                   className="log-total-value"
                 >
-                  {formatHours(day.totals[row.status])}
+                  {formatHours(day.totals[row.status], {
+                    maximumFractionDigits: 2,
+                  })}
                 </text>
               </g>
             );
@@ -354,18 +357,27 @@ export function LogSheet({ day }: LogSheetProps) {
       </section>
 
       <footer className="paper-log-recap" aria-label="Cycle recap">
-        <PaperField label="Total hours" value={formatHours(totalHours)} />
+        <PaperField
+          label="Total hours"
+          value={formatHours(totalHours, { maximumFractionDigits: 2 })}
+        />
         <PaperField
           label="Cycle used at start"
-          value={formatHours(day.recap.cycle_used_start)}
+          value={formatHours(day.recap.cycle_used_start, {
+            maximumFractionDigits: 2,
+          })}
         />
         <PaperField
           label="Cycle used at end"
-          value={formatHours(day.recap.cycle_used_end)}
+          value={formatHours(day.recap.cycle_used_end, {
+            maximumFractionDigits: 2,
+          })}
         />
         <PaperField
           label="Cycle available at end"
-          value={formatHours(day.recap.cycle_available_end)}
+          value={formatHours(day.recap.cycle_available_end, {
+            maximumFractionDigits: 2,
+          })}
         />
       </footer>
     </article>
@@ -491,14 +503,4 @@ function formatHourLabel(hour: number): string {
     return "Noon";
   }
   return String(hour);
-}
-
-function formatHours(value: number): string {
-  return `${formatNumber(value)} hr`;
-}
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(
-    value,
-  );
 }

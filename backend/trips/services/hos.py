@@ -154,6 +154,7 @@ def _add_service_event(events: list[DutyEvent], stops: list[dict], state: dict, 
         'hour': _round_hour(start_hour),
         'duration_hours': SERVICE_DURATION_HOURS,
         'location': location,
+        'route_mile': _round_miles(state['route_miles']),
     })
     state['hour'] = end_hour
     state['cycle_used'] += SERVICE_DURATION_HOURS
@@ -171,6 +172,7 @@ def _add_fuel_event(events: list[DutyEvent], stops: list[dict], state: dict) -> 
         'hour': _round_hour(start_hour),
         'duration_hours': FUEL_DURATION_HOURS,
         'location': location,
+        'route_mile': _round_miles(state['route_miles']),
     })
     state['hour'] = end_hour
     state['cycle_used'] += FUEL_DURATION_HOURS
@@ -186,6 +188,7 @@ def _insert_thirty_minute_break(events: list[DutyEvent], stops: list[dict], stat
         'hour': _round_hour(start_hour),
         'duration_hours': THIRTY_MINUTE_BREAK_HOURS,
         'location': location,
+        'route_mile': _round_miles(state['route_miles']),
     })
     state['hour'] = end_hour
     state['driving_since_break'] = 0.0
@@ -201,6 +204,7 @@ def _insert_ten_hour_break(events: list[DutyEvent], stops: list[dict], state: di
         'hour': _round_hour(start_hour),
         'duration_hours': TEN_HOUR_BREAK_HOURS,
         'location': location,
+        'route_mile': _round_miles(state['route_miles']),
     })
     state['hour'] = end_hour
     state['duty_start'] = end_hour
@@ -218,6 +222,7 @@ def _insert_restart(events: list[DutyEvent], stops: list[dict], state: dict) -> 
         'hour': _round_hour(start_hour),
         'duration_hours': RESTART_HOURS,
         'location': location,
+        'route_mile': _round_miles(state['route_miles']),
     })
     state['hour'] = end_hour
     state['cycle_used'] = 0.0

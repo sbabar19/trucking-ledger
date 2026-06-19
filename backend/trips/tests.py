@@ -69,6 +69,7 @@ class HOSTests(TestCase):
         self.assertEqual(breaks[0]['location'], 'Route mile 540')
         self.assertTrue(driving_after_break)
         self.assertIn('location', schedule['days'][0]['segments'][0])
+        self.assertEqual(schedule['stops'][1]['route_mile'], 540.0)
 
     def test_one_hour_service_event_satisfies_thirty_minute_break_requirement(self):
         schedule = build_schedule([
@@ -122,6 +123,7 @@ class HOSTests(TestCase):
         self.assertEqual(fuel_events[0]['status'], 'on_duty')
         self.assertEqual(fuel_events[0]['end_hour'] - fuel_events[0]['start_hour'], 0.25)
         self.assertEqual(fuel_stops[0]['duration_hours'], 0.25)
+        self.assertEqual(fuel_stops[0]['route_mile'], 1000.0)
 
     def test_high_cycle_used_inserts_restart_before_exceeding_seventy_hours(self):
         schedule = build_schedule([
@@ -251,6 +253,7 @@ class TripPlanAPITests(TestCase):
         self.assertEqual(payload['route']['geometry']['type'], 'LineString')
         self.assertTrue(payload['route']['instructions'])
         self.assertTrue(payload['schedule']['stops'])
+        self.assertIn('route_mile', payload['schedule']['stops'][0])
         self.assertTrue(payload['schedule']['events'])
         self.assertTrue(payload['schedule']['days'])
         self.assertTrue(payload['schedule']['days'][0]['segments'])

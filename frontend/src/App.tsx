@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatHours, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { LocationSuggestion } from "@/lib/mapboxGeocoding";
 import type {
@@ -341,7 +342,11 @@ function App() {
           </Card>
         </div>
 
-        <MapPanel locations={locationSummary} route={result?.route} />
+        <MapPanel
+          locations={locationSummary}
+          route={result?.route}
+          stops={result?.schedule.stops}
+        />
       </section>
 
       {result || isLoading ? (
@@ -633,16 +638,6 @@ function clearFormError(errors: FormErrors, field: PlannerFieldKey): FormErrors 
   const nextErrors = { ...errors };
   delete nextErrors[field];
   return nextErrors;
-}
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(
-    value,
-  );
-}
-
-function formatHours(value: number): string {
-  return `${formatNumber(value)} hr`;
 }
 
 export default App;

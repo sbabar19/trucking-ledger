@@ -45,6 +45,7 @@ export interface ScheduleStop {
   hour: number;
   duration_hours: number;
   location: string;
+  route_mile: number;
 }
 
 export interface LogSegment {

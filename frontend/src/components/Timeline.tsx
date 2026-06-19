@@ -21,6 +21,13 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  formatHourOffset,
+  formatHours,
+  formatMinutes,
+  formatNumber,
+} from "@/lib/format";
+import { getStopLabel } from "@/lib/schedule";
 import type { RouteInstruction, ScheduleStop } from "@/types";
 
 interface TimelineProps {
@@ -97,7 +104,8 @@ export function Timeline({ instructions, stops }: TimelineProps) {
             <ItemGroup className="schedule-list gap-2.5">
               {stops.map((stop, index) => {
                 const label = getStopLabel(stop);
-                const isRestStop = label === "Rest" || label === "Restart";
+                const isRestStop =
+                  stop.type === "rest" || stop.type === "restart";
 
                 return (
                   <Item
@@ -137,53 +145,5 @@ export function Timeline({ instructions, stops }: TimelineProps) {
         </CardContent>
       </Card>
     </section>
-  );
-}
-
-function getStopLabel(stop: ScheduleStop): string {
-  if (stop.type === "pickup") {
-    return "Pickup";
-  }
-  if (stop.type === "dropoff") {
-    return "Dropoff";
-  }
-  if (stop.type === "fuel") {
-    return "Fuel";
-  }
-  if (
-    stop.type === "restart" ||
-    stop.location.toLowerCase().includes("34-hour restart")
-  ) {
-    return "Restart";
-  }
-  return "Rest";
-}
-
-function formatHourOffset(hour: number): string {
-  const day = Math.floor(hour / 24) + 1;
-  const hourWithinDay = hour % 24;
-  const wholeHours = Math.floor(hourWithinDay);
-  const minutes = Math.round((hourWithinDay - wholeHours) * 60);
-  const displayHours = minutes === 60 ? wholeHours + 1 : wholeHours;
-  const displayMinutes = minutes === 60 ? 0 : minutes;
-
-  return `Day ${day}, ${displayHours.toString().padStart(2, "0")}:${displayMinutes.toString().padStart(2, "0")}`;
-}
-
-function formatHours(value: number): string {
-  return `${formatNumber(value)} hr`;
-}
-
-function formatMinutes(value: number): string {
-  if (value >= 60) {
-    return formatHours(value / 60);
-  }
-
-  return `${formatNumber(value)} min`;
-}
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(
-    value,
   );
 }
