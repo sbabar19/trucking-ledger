@@ -306,7 +306,6 @@ export function LogSheet({ day }: LogSheetProps) {
           {remarkEntries.map((entry, index) => {
             const startX = xForHour(entry.start);
             const endX = xForHour(entry.end);
-            // Cup leaders mark an event span only when the event returns to driving.
             const bracketEndX = entry.usesCupLeader ? endX : startX;
             const elbowX = startX;
             const elbowY = remarksBracketY;
@@ -406,9 +405,24 @@ function getRemarkEntries(segments: LogSegment[]): RemarkEntry[] {
         start: segment.start,
         end: segment.end,
         label,
-        usesCupLeader: segment.status !== "driving" && nextSegment?.status === "driving",
+        usesCupLeader: shouldUseCupLeader(segment, nextSegment),
       }];
     });
+}
+
+function shouldUseCupLeader(
+  segment: LogSegment,
+  nextSegment: LogSegment | undefined,
+): boolean {
+  if (segment.status === "driving") {
+    return false;
+  }
+
+  return nextSegment?.status === "driving" || isDropoffRemark(segment);
+}
+
+function isDropoffRemark(segment: LogSegment): boolean {
+  return segment.remarks.trim().toLowerCase() === "dropoff";
 }
 
 function isFollowUpStatusChangeAfterDetailedEvent(segments: LogSegment[], index: number): boolean {
