@@ -1,3 +1,4 @@
+import { ComplianceSummary } from "@/components/planner/ComplianceSummary";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -20,76 +21,23 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  formatHourOffset,
-  formatHours,
-  formatMinutes,
-  formatNumber,
-} from "@/lib/format";
+import { formatHourOffset, formatHours } from "@/lib/format";
 import { getStopLabel } from "@/lib/schedule";
-import type { RouteInstruction, ScheduleStop } from "@/types";
+import type { ScheduleStop, TripPlanResponse } from "@/types";
 
 interface TimelineProps {
-  instructions: RouteInstruction[];
+  result: TripPlanResponse;
+  isLoading: boolean;
   stops: ScheduleStop[];
 }
 
-export function Timeline({ instructions, stops }: TimelineProps) {
+export function Timeline({ result, isLoading, stops }: TimelineProps) {
   return (
     <section
-      className="grid items-stretch grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)] gap-5 print:hidden max-[1120px]:grid-cols-1"
+      className="grid items-stretch grid-cols-[minmax(300px,0.34fr)_minmax(0,0.66fr)] gap-5 print:hidden max-[1120px]:grid-cols-1"
       aria-label="Route timeline"
     >
-      <Card className="dashboard-card h-full rounded-[1.25rem] shadow-none ring-1 ring-border/80">
-        <CardHeader className="gap-2">
-          <CardDescription className="section-kicker-card">Turn-by-turn</CardDescription>
-          <CardTitle className="section-title">
-            Route instructions
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent className="flex-1">
-          {instructions.length ? (
-            <ScrollArea className="h-full max-h-[440px] pr-3 max-[560px]:max-h-none">
-              <ItemGroup className="gap-2.5">
-                {instructions.map((instruction, index) => (
-                  <Item
-                    key={`${instruction.text}-${index}`}
-                    className="timeline-item"
-                    role="listitem"
-                    variant="muted"
-                  >
-                    <ItemMedia>
-                      <Badge className="min-w-6" variant="secondary">
-                        {index + 1}
-                      </Badge>
-                    </ItemMedia>
-                    <ItemContent>
-                      <ItemTitle className="line-clamp-none">
-                        {instruction.text}
-                      </ItemTitle>
-                      <ItemDescription>
-                        {formatNumber(instruction.distance_miles)} mi ·{" "}
-                        {formatMinutes(instruction.duration_minutes)}
-                      </ItemDescription>
-                    </ItemContent>
-                  </Item>
-                ))}
-              </ItemGroup>
-            </ScrollArea>
-          ) : (
-            <Empty className="border">
-              <EmptyHeader>
-                <EmptyTitle>No route instructions</EmptyTitle>
-                <EmptyDescription>
-                  No route instructions were returned for this route.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )}
-        </CardContent>
-      </Card>
+      <ComplianceSummary result={result} isLoading={isLoading} layout="vertical" />
 
       <Card className="dashboard-card h-full rounded-[1.25rem] shadow-none ring-1 ring-border/80">
         <CardHeader className="gap-2">

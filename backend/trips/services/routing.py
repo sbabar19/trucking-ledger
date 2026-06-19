@@ -81,7 +81,6 @@ def get_route(
                 'access_token': token,
                 'geometries': 'geojson',
                 'overview': 'full',
-                'steps': 'true',
             },
             timeout=15,
         )
@@ -106,7 +105,6 @@ def get_route(
         'duration_hours': round(route.get('duration', 0) / 3600, 2),
         'geometry': route.get('geometry') or {'type': 'LineString', 'coordinates': []},
         'waypoints': waypoints,
-        'instructions': [instruction for leg in legs for instruction in leg['instructions']],
         'legs': legs,
     }
 
@@ -207,18 +205,9 @@ def _get_access_token() -> str:
 
 
 def _format_leg(leg: dict) -> dict:
-    steps = leg.get('steps') or []
     return {
         'distance_miles': round(leg.get('distance', 0) / METERS_PER_MILE, 2),
         'duration_hours': round(leg.get('duration', 0) / 3600, 2),
-        'instructions': [
-            {
-                'text': step.get('maneuver', {}).get('instruction') or 'Continue',
-                'distance_miles': round(step.get('distance', 0) / METERS_PER_MILE, 2),
-                'duration_minutes': round(step.get('duration', 0) / 60, 2),
-            }
-            for step in steps
-        ],
     }
 
 

@@ -15,6 +15,7 @@ import type { TripPlanResponse } from "@/types";
 interface ComplianceSummaryProps {
   result: TripPlanResponse | null;
   isLoading: boolean;
+  layout?: "horizontal" | "vertical";
 }
 
 interface MetricProps {
@@ -27,13 +28,14 @@ interface MetricProps {
 export function ComplianceSummary({
   result,
   isLoading,
+  layout = "horizontal",
 }: ComplianceSummaryProps) {
   const lastLogDay = result?.schedule.days.at(-1);
   const cycleUsed = lastLogDay?.recap.cycle_used_end ?? null;
   const cycleRemaining = lastLogDay?.recap.cycle_available_end ?? null;
 
   return (
-    <Card className="dashboard-card rounded-[1.25rem] shadow-none ring-1 ring-border/80">
+    <Card className="dashboard-card h-full rounded-[1.25rem] shadow-none ring-1 ring-border/80">
       <CardHeader className="gap-2 pb-2">
         <CardDescription className="section-kicker-card">
           Compliance summary
@@ -44,7 +46,13 @@ export function ComplianceSummary({
       </CardHeader>
 
       <CardContent>
-        <div className="grid grid-cols-5 gap-3 max-[1120px]:grid-cols-2 max-[560px]:grid-cols-1">
+        <div
+          className={cn("grid gap-3", {
+            "grid-cols-5 max-[1120px]:grid-cols-2 max-[560px]:grid-cols-1":
+              layout === "horizontal",
+            "grid-cols-1": layout === "vertical",
+          })}
+        >
           <Metric
             label="Total miles"
             value={result ? formatNumber(result.route.distance_miles) : "---"}
@@ -100,13 +108,13 @@ function Metric({
 }: MetricProps) {
   return (
     <Card
-      className={cn("metric-card min-h-36 rounded-xl shadow-none", {
+      className={cn("metric-card min-h-30 rounded-xl shadow-none", {
         "metric-card--success": tone === "success",
         "metric-card--warning": tone === "warning",
         "metric-card--danger": tone === "danger",
       })}
     >
-      <CardHeader className="h-full content-between gap-5">
+      <CardHeader className="h-full content-between gap-4">
         <CardDescription className="metric-label text-xs">
           {label}
         </CardDescription>

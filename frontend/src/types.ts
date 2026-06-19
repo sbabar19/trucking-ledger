@@ -23,12 +23,6 @@ export interface TripPlanRequest {
   dropoff_coordinates?: Coordinates;
 }
 
-export interface RouteInstruction {
-  text: string;
-  distance_miles: number;
-  duration_minutes: number;
-}
-
 export interface RouteWaypoint {
   label: string;
   location: string;
@@ -91,7 +85,6 @@ export interface TripPlanResponse {
     duration_hours: number;
     geometry: RouteGeometry;
     waypoints: RouteWaypoint[];
-    instructions: RouteInstruction[];
   };
   schedule: {
     assumptions: string[];

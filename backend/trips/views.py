@@ -54,7 +54,6 @@ def plan_trip(request):
             'duration_hours': route['duration_hours'],
             'geometry': route['geometry'],
             'waypoints': route['waypoints'],
-            'instructions': route['instructions'],
         },
         'schedule': build_schedule(legs, data['current_cycle_used'], location_resolver),
     })

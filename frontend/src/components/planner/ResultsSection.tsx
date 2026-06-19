@@ -1,5 +1,4 @@
 import { DailyLogPanel } from "@/components/planner/DailyLogPanel";
-import { ComplianceSummary } from "@/components/planner/ComplianceSummary";
 import { Timeline } from "@/components/Timeline";
 import {
   Card,
@@ -40,8 +39,6 @@ export function ResultsSection({
       className="mx-auto mt-6 grid max-w-[1480px] min-w-0 gap-5"
       aria-live="polite"
     >
-      <ComplianceSummary result={result} isLoading={isLoading} />
-
       {isLoading ? (
         <Card
           className="dashboard-card rounded-[1.25rem] shadow-none ring-1 ring-border/80"
@@ -64,7 +61,8 @@ export function ResultsSection({
       {result ? (
         <>
           <Timeline
-            instructions={result.route.instructions}
+            result={result}
+            isLoading={isLoading}
             stops={result.schedule.stops}
           />
           <DailyLogPanel

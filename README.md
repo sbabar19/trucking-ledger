@@ -1,13 +1,13 @@
 # Trucking Ledger
 
-Trucking Ledger is a Django + React trip planner for dispatchers and drivers. It generates compliant trip plans, route instructions, stop/rest timing, and daily log sheets from one app.
+Trucking Ledger is a Django + React trip planner for dispatchers and drivers. It generates compliant trip plans, stop/rest timing, and daily log sheets from one app.
 
 ## Features
 
 - Trip form for origin, pickup, dropoff, and cycle usage
 - Frontend Mapbox autocomplete and click-to-pick locations
 - Route map with fallback when the public Mapbox token is missing
-- Turn-by-turn route instructions and stop summaries
+- Route map with stop and rest summaries
 - Daily log sheets and HOS schedule recap
 
 ## Local Development

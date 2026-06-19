@@ -28,12 +28,9 @@ MOCK_ROUTE = {
         {'label': 'Pickup', 'location': 'Phoenix, AZ', 'coordinates': [-112.1, 33.4]},
         {'label': 'Dropoff', 'location': 'Los Angeles, CA', 'coordinates': [-118.2, 34.0]},
     ],
-    'instructions': [
-        {'text': 'Head west', 'distance_miles': 10.2, 'duration_minutes': 12.4},
-    ],
     'legs': [
-        {'distance_miles': 600, 'duration_hours': 9, 'instructions': []},
-        {'distance_miles': 400, 'duration_hours': 7, 'instructions': []},
+        {'distance_miles': 600, 'duration_hours': 9},
+        {'distance_miles': 400, 'duration_hours': 7},
     ],
 }
 
@@ -251,7 +248,7 @@ class TripPlanAPITests(TestCase):
         self.assertIn('route', payload)
         self.assertIn('schedule', payload)
         self.assertEqual(payload['route']['geometry']['type'], 'LineString')
-        self.assertTrue(payload['route']['instructions'])
+        self.assertNotIn('instructions', payload['route'])
         self.assertTrue(payload['schedule']['stops'])
         self.assertIn('route_mile', payload['schedule']['stops'][0])
         self.assertTrue(payload['schedule']['events'])
