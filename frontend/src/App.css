@@ -154,6 +154,39 @@
   letter-spacing: -0.01em;
 }
 
+.metric-help {
+  display: inline-grid;
+  width: 1rem;
+  height: 1rem;
+  place-items: center;
+  color: var(--muted-foreground);
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--muted), var(--foreground) 6%);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.metric-help svg {
+  width: 0.72rem;
+  height: 0.72rem;
+}
+
+.metric-help:hover,
+.metric-help:focus-visible,
+.metric-help[data-state="delayed-open"],
+.metric-help[data-state="instant-open"] {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--accent), var(--foreground) 4%);
+}
+
+.metric-help:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring), transparent 55%);
+}
+
 .metric-value {
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
@@ -237,7 +270,7 @@
 }
 
 .map-stop-marker small {
-  color: color-mix(in oklch, var(--primary-foreground), transparent 18%);
+  color: color-mix(in oklch, currentColor, transparent 22%);
   font-family: var(--font-mono);
   font-size: 0.61rem;
   font-weight: 700;
@@ -261,6 +294,13 @@
   color: var(--foreground);
   border-color: color-mix(in oklch, var(--border), var(--primary) 28%);
   background: color-mix(in oklch, var(--card), var(--background) 6%);
+}
+
+.map-stop-marker[data-stop-type="current"] small,
+.map-stop-marker[data-stop-type="pickup"] small,
+.map-stop-marker[data-stop-type="dropoff"] small,
+.map-stop-marker[data-stop-type="fuel"] small {
+  color: color-mix(in oklch, currentColor, transparent 12%);
 }
 
 .map-stop-marker[data-stop-type="fuel"] {

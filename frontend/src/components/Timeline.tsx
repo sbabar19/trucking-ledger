@@ -34,7 +34,7 @@ interface TimelineProps {
 export function Timeline({ result, isLoading, stops }: TimelineProps) {
   return (
     <section
-      className="grid items-stretch grid-cols-[minmax(300px,0.34fr)_minmax(0,0.66fr)] gap-5 print:hidden max-[1120px]:grid-cols-1"
+      className="grid items-stretch grid-cols-[minmax(520px,0.48fr)_minmax(0,0.52fr)] gap-5 print:hidden max-[1120px]:grid-cols-1"
       aria-label="Route timeline"
     >
       <ComplianceSummary result={result} isLoading={isLoading} layout="vertical" />

@@ -134,7 +134,7 @@ export function MapPanel({ locations, route, stops = [] }: MapPanelProps) {
   }
 
   return (
-    <div className="map-panel dashboard-card h-[min(52vh,520px)] min-h-[340px] overflow-hidden rounded-[1.25rem] bg-card p-1.5 shadow-none ring-1 ring-border/80 max-[900px]:min-h-[310px] max-[560px]:min-h-[260px]">
+    <div className="map-panel h-[min(52vh,520px)] min-h-[340px] overflow-hidden rounded-[1.25rem] bg-[#111827] p-1.5 shadow-none ring-1 ring-border/80 max-[900px]:min-h-[310px] max-[560px]:min-h-[260px]">
       <Map
         ref={mapRef}
         initialViewState={{
@@ -143,7 +143,7 @@ export function MapPanel({ locations, route, stops = [] }: MapPanelProps) {
           zoom: 3.2,
         }}
         mapboxAccessToken={mapboxToken}
-        mapStyle="mapbox://styles/mapbox/light-v11"
+        mapStyle="mapbox://styles/mapbox/dark-v11"
         style={{ width: "100%", height: "100%", borderRadius: "0.95rem" }}
       >
         <NavigationControl position="top-right" />
