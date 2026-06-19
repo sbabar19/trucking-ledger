@@ -21,9 +21,15 @@ import type {
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 
 const DEFAULT_LOCATIONS: PlannerLocations = {
-  current_location: { value: "Dallas, TX", coordinates: null },
-  pickup_location: { value: "Phoenix, AZ", coordinates: null },
-  dropoff_location: { value: "Los Angeles, CA", coordinates: null },
+  current_location: {
+    value: "Phoenix, Arizona, United States",
+    coordinates: null,
+  },
+  pickup_location: {
+    value: "Alberque Drive, Krum, Texas 76249, United States",
+    coordinates: null,
+  },
+  dropoff_location: { value: "Dallas, Texas, United States", coordinates: null },
 };
 
 const DEFAULT_CYCLE_USED = "12";
@@ -41,6 +47,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+
+  const resetPlanner = () => {
+    setLocations(DEFAULT_LOCATIONS);
+    setCurrentCycleUsed(DEFAULT_CYCLE_USED);
+    setResult(null);
+    setSelectedLogDayIndex(0);
+    setIsLoading(false);
+    setErrorMessage("");
+    setFormErrors({});
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -168,6 +184,7 @@ function App() {
             onSuggestionSelect={handleSuggestionSelect}
             onCurrentCycleUsedChange={updateCurrentCycleUsed}
             onCycleUsedKeyDown={handleCycleUsedKeyDown}
+            onReset={resetPlanner}
           />
         </div>
 

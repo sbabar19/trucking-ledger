@@ -16,7 +16,6 @@ import type {
   Coordinates,
   LocationFieldKey,
   LocationSelectionMap,
-  RouteWaypoint,
   ScheduleStop,
   TripPlanResponse,
 } from "@/types";
@@ -77,6 +76,9 @@ export function MapPanel({ locations, route, stops = [] }: MapPanelProps) {
   const stopMarkers = useMemo(
     () => buildStopMarkers(route, stops),
     [route, stops],
+  );
+  const currentWaypoint = route?.waypoints.find(
+    (waypoint) => waypoint.label === fieldLabels.current_location,
   );
   const selectedStop =
     stopMarkers.find((marker) => marker.id === selectedStopId) ?? null;
@@ -150,18 +152,8 @@ export function MapPanel({ locations, route, stops = [] }: MapPanelProps) {
             <Layer {...routeLineLayer} />
           </Source>
         ) : null}
-        {route
-          ? route.waypoints.map((waypoint) => (
-              <Marker
-                key={`${waypoint.label}-${waypoint.location}`}
-                longitude={waypoint.coordinates[0]}
-                latitude={waypoint.coordinates[1]}
-                anchor="bottom"
-              >
-                <WaypointMarker waypoint={waypoint} />
-              </Marker>
-            ))
-          : Object.entries(locations).map(([field, location]) =>
+        {!route
+          ? Object.entries(locations).map(([field, location]) =>
               location.coordinates ? (
                 <Marker
                   key={field}
@@ -172,7 +164,17 @@ export function MapPanel({ locations, route, stops = [] }: MapPanelProps) {
                   <Badge>{fieldLabels[field as LocationFieldKey]}</Badge>
                 </Marker>
               ) : null,
-            )}
+            )
+          : null}
+        {route && currentWaypoint ? (
+          <Marker
+            longitude={currentWaypoint.coordinates[0]}
+            latitude={currentWaypoint.coordinates[1]}
+            anchor="top"
+          >
+            <EndpointMarker label={fieldLabels.current_location} type="current" />
+          </Marker>
+        ) : null}
         {stopMarkers.map((marker) => (
           <Marker
             key={marker.id}
@@ -284,10 +286,6 @@ function MapFallback({ route, stops = [] }: Pick<MapPanelProps, "route" | "stops
   );
 }
 
-function WaypointMarker({ waypoint }: { waypoint: RouteWaypoint }) {
-  return <Badge>{waypoint.label}</Badge>;
-}
-
 function StopMarker({
   marker,
   isSelected,
@@ -312,6 +310,21 @@ function StopMarker({
       <span>{marker.label}</span>
       <small>{formatHourOffset(marker.stop.hour, { compact: true })}</small>
     </button>
+  );
+}
+
+function EndpointMarker({
+  label,
+  type,
+}: {
+  label: string;
+  type: "current";
+}) {
+  return (
+    <div className="map-stop-marker" data-stop-type={type}>
+      <span>{label}</span>
+      <small>Start</small>
+    </div>
   );
 }
 

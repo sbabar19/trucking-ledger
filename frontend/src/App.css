@@ -1,8 +1,20 @@
 .app-shell {
   background:
-    radial-gradient(circle at 12% -8%, color-mix(in oklch, var(--accent), transparent 46%), transparent 28rem),
-    radial-gradient(circle at 86% 6%, color-mix(in oklch, var(--muted), transparent 22%), transparent 24rem),
-    linear-gradient(180deg, color-mix(in oklch, var(--background), white 42%), var(--background)),
+    radial-gradient(
+      circle at 12% -8%,
+      color-mix(in oklch, var(--accent), transparent 46%),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 86% 6%,
+      color-mix(in oklch, var(--muted), transparent 22%),
+      transparent 24rem
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--background), white 42%),
+      var(--background)
+    ),
     var(--background);
 }
 
@@ -16,8 +28,16 @@
   overflow: hidden;
   border: 1px solid color-mix(in oklch, var(--border), transparent 18%);
   background:
-    radial-gradient(circle at 83% 10%, color-mix(in oklch, var(--accent), transparent 28%), transparent 16rem),
-    linear-gradient(135deg, color-mix(in oklch, var(--card), var(--accent) 18%), color-mix(in oklch, var(--background), var(--muted) 18%));
+    radial-gradient(
+      circle at 83% 10%,
+      color-mix(in oklch, var(--accent), transparent 28%),
+      transparent 16rem
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--card), var(--accent) 18%),
+      color-mix(in oklch, var(--background), var(--muted) 18%)
+    );
 }
 
 .booking-hero::after {
@@ -26,8 +46,16 @@
   z-index: -1;
   content: "";
   background:
-    linear-gradient(90deg, color-mix(in oklch, var(--foreground), transparent 96%) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in oklch, var(--foreground), transparent 96%) 1px, transparent 1px);
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--foreground), transparent 96%) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      0deg,
+      color-mix(in oklch, var(--foreground), transparent 96%) 1px,
+      transparent 1px
+    );
   background-size: 72px 72px;
   mask-image: linear-gradient(120deg, black, transparent 72%);
 }
@@ -85,7 +113,7 @@
 
 .booking-field-grid [data-slot="button"] {
   align-self: start;
-  margin-top: 1.68rem;
+  margin-top: 1.5rem;
 }
 
 .section-kicker-card {
@@ -227,12 +255,8 @@
   outline-offset: 2px;
 }
 
-.map-stop-marker[data-stop-type="pickup"] {
-  color: oklch(0.985 0.004 92);
-  border-color: color-mix(in oklch, oklch(0.44 0.035 155), white 22%);
-  background: oklch(0.44 0.035 155);
-}
-
+.map-stop-marker[data-stop-type="current"],
+.map-stop-marker[data-stop-type="pickup"],
 .map-stop-marker[data-stop-type="dropoff"] {
   color: var(--foreground);
   border-color: color-mix(in oklch, var(--border), var(--primary) 28%);
@@ -336,12 +360,17 @@
   border: 1px solid #1f2937;
   border-radius: 0.25rem;
   background: #ffffff;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 16px 30px -24px rgb(15 23 42 / 0.36);
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.04),
+    0 16px 30px -24px rgb(15 23 42 / 0.36);
 }
 
 .paper-log-title {
   display: grid;
-  grid-template-columns: minmax(150px, 0.75fr) minmax(260px, 1fr) minmax(220px, 0.9fr);
+  grid-template-columns: minmax(150px, 0.75fr) minmax(260px, 1fr) minmax(
+      220px,
+      0.9fr
+    );
   gap: 0.18in;
   align-items: center;
   padding-bottom: 0.12in;
@@ -485,8 +514,7 @@
 .log-total-value,
 .log-remark-hour,
 .log-remarks-heading,
-.log-remark-location,
-.log-remark-purpose {
+.log-remark-label {
   fill: #111827;
   font-family: var(--font-sans);
   font-weight: 700;
@@ -521,14 +549,9 @@
   letter-spacing: 0.02em;
 }
 
-.log-remark-location,
-.log-remark-purpose {
+.log-remark-label {
   font-size: 12px;
   font-weight: 900;
-}
-
-.log-remark-purpose {
-  font-size: 11px;
 }
 
 .log-total-heading {
@@ -623,8 +646,16 @@
 @media (max-width: 560px) {
   .app-shell {
     background:
-      radial-gradient(circle at 18% -6%, color-mix(in oklch, var(--accent), transparent 54%), transparent 20rem),
-      linear-gradient(180deg, color-mix(in oklch, var(--background), white 38%), var(--background)),
+      radial-gradient(
+        circle at 18% -6%,
+        color-mix(in oklch, var(--accent), transparent 54%),
+        transparent 20rem
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in oklch, var(--background), white 38%),
+        var(--background)
+      ),
       var(--background);
   }
 
@@ -671,7 +702,9 @@
   }
 
   .app-shell > section:first-of-type,
-  .app-shell > section[aria-live="polite"] > .dashboard-card:not([aria-label="Daily log sheets"]),
+  .app-shell
+    > section[aria-live="polite"]
+    > .dashboard-card:not([aria-label="Daily log sheets"]),
   .app-shell > section[aria-live="polite"] > [aria-label="Route timeline"] {
     display: none;
   }

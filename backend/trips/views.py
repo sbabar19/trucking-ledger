@@ -26,20 +26,23 @@ def plan_trip(request):
         status_code = status.HTTP_503_SERVICE_UNAVAILABLE if 'MAPBOX_ACCESS_TOKEN' in str(exc) else status.HTTP_502_BAD_GATEWAY
         return Response({'detail': str(exc)}, status=status_code)
 
+    current_location = route['waypoints'][0]['location']
+    pickup_location = route['waypoints'][1]['location']
+    dropoff_location = route['waypoints'][2]['location']
     legs = [
         TripLeg(
             'pickup',
             route['legs'][0]['distance_miles'],
             route['legs'][0]['duration_hours'],
-            data['current_location'],
-            data['pickup_location'],
+            current_location,
+            pickup_location,
         ),
         TripLeg(
             'dropoff',
             route['legs'][1]['distance_miles'],
             route['legs'][1]['duration_hours'],
-            data['pickup_location'],
-            data['dropoff_location'],
+            pickup_location,
+            dropoff_location,
         ),
     ]
 

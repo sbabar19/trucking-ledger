@@ -11,6 +11,13 @@ interface PaperFieldProps {
   className?: string;
 }
 
+interface RemarkEntry {
+  start: number;
+  end: number;
+  label: string;
+  usesCupLeader: boolean;
+}
+
 // The fixed 1080-unit SVG viewBox mimics a landscape paper log. The graph
 // bounds define the 24-hour grid, and each row center is one duty-status line.
 // Remark leaders connect status-change times to their city/purpose labels.
@@ -27,7 +34,6 @@ const remarksTextY = remarksAxisY + 160;
 const minSvgHeight = remarksTextY + 112;
 const remarkLaneGap = 28;
 const remarkLeaderRun = 94;
-const maxProngDurationHours = 2;
 const rowCenters: Record<DutyStatus, number> = {
   off_duty: graphTop + rowHeight * 0.5,
   sleeper_berth: graphTop + rowHeight * 1.5,
@@ -300,9 +306,8 @@ export function LogSheet({ day }: LogSheetProps) {
           {remarkEntries.map((entry, index) => {
             const startX = xForHour(entry.start);
             const endX = xForHour(entry.end);
-            // Short non-driving events get bracket/prong leaders so the
-            // callout marks the event span instead of a single instant.
-            const bracketEndX = entry.isShortEvent ? endX : startX;
+            // Cup leaders mark an event span only when the event returns to driving.
+            const bracketEndX = entry.usesCupLeader ? endX : startX;
             const elbowX = startX;
             const elbowY = remarksBracketY;
             const leaderEndX = remarkMarkerX(entry.start, index);
@@ -315,39 +320,25 @@ export function LogSheet({ day }: LogSheetProps) {
             const leaderNormalX = -leaderUnitY;
             const leaderNormalY = leaderUnitX;
             const textAngle = (Math.atan2(leaderVectorY, leaderVectorX) * 180) / Math.PI;
-            const labelBaseX = leaderEndX + leaderUnitX * 10;
-            const labelBaseY = leaderEndY + leaderUnitY * 10;
-            const locationX = labelBaseX - leaderNormalX * 8;
-            const locationY = labelBaseY - leaderNormalY * 8;
-            const purposeX = labelBaseX + leaderNormalX * 14;
-            const purposeY = labelBaseY + leaderNormalY * 14;
-            const leaderPath = entry.isShortEvent
+            const labelX = leaderEndX + leaderUnitX * 10 - leaderNormalX * 5;
+            const labelY = leaderEndY + leaderUnitY * 10 - leaderNormalY * 5;
+            const leaderPath = entry.usesCupLeader
               ? `M ${startX} ${remarksAxisY} V ${elbowY} H ${bracketEndX} V ${remarksAxisY} M ${elbowX} ${elbowY} L ${leaderEndX} ${leaderEndY}`
               : `M ${startX} ${remarksAxisY} V ${elbowY} L ${leaderEndX} ${leaderEndY}`;
             return (
-              <g key={`${entry.start}-${entry.location}-${entry.purpose}-${index}`}>
+              <g key={`${entry.start}-${entry.label}-${index}`}>
                 <path
                   d={leaderPath}
                   className="log-remark-leader"
                 />
                 <text
-                  x={locationX}
-                  y={locationY}
-                  transform={`rotate(${textAngle} ${locationX} ${locationY})`}
-                  className="log-remark-location"
+                  x={labelX}
+                  y={labelY}
+                  transform={`rotate(${textAngle} ${labelX} ${labelY})`}
+                  className="log-remark-label"
                 >
-                  {entry.location}
+                  {entry.label}
                 </text>
-                {entry.purpose ? (
-                  <text
-                    x={purposeX}
-                    y={purposeY}
-                    transform={`rotate(${textAngle} ${purposeX} ${purposeY})`}
-                    className="log-remark-purpose"
-                  >
-                    {entry.purpose}
-                  </text>
-                ) : null}
               </g>
             );
           })}
@@ -398,36 +389,29 @@ function PaperField({ label, value, className = "" }: PaperFieldProps) {
   );
 }
 
-function getRemarkEntries(segments: LogSegment[]) {
+function getRemarkEntries(segments: LogSegment[]): RemarkEntry[] {
   return segments
-    .filter((segment, index) => {
-      if (isResumeAfterShortSameLocationStop(segments, index)) {
-        return false;
+    .flatMap((segment, index): RemarkEntry[] => {
+      if (isFollowUpStatusChangeAfterDetailedEvent(segments, index)) {
+        return [];
       }
 
-      const detail = formatRemarkDetail(segment.remarks);
-      if (segment.is_status_change || (detail && segment.start > 0)) {
-        return true;
+      const label = formatRemarkLabel(segment);
+      if (!label || (!segment.is_status_change && segment.start === 0)) {
+        return [];
       }
 
-      return false;
-    })
-    .map((segment) => {
-      const detail = formatRemarkDetail(segment.remarks);
-      return {
+      const nextSegment = segments[index + 1];
+      return [{
         start: segment.start,
         end: segment.end,
-        location: formatRemarkLocation(segment.location),
-        purpose: detail,
-        isShortEvent:
-          segment.status !== "driving" &&
-          segment.end > segment.start &&
-          segment.end - segment.start <= maxProngDurationHours,
-      };
+        label,
+        usesCupLeader: segment.status !== "driving" && nextSegment?.status === "driving",
+      }];
     });
 }
 
-function isResumeAfterShortSameLocationStop(segments: LogSegment[], index: number): boolean {
+function isFollowUpStatusChangeAfterDetailedEvent(segments: LogSegment[], index: number): boolean {
   const segment = segments[index];
   const previousSegment = segments[index - 1];
   if (!previousSegment || !segment.is_status_change) {
@@ -439,30 +423,21 @@ function isResumeAfterShortSameLocationStop(segments: LogSegment[], index: numbe
   return (
     !segmentDetail &&
     previousDetail.length > 0 &&
-    previousSegment.status !== "driving" &&
-    previousSegment.end > previousSegment.start &&
-    previousSegment.end - previousSegment.start <= maxProngDurationHours &&
-    Math.abs(segment.start - previousSegment.end) < 0.01 &&
-    segment.location === previousSegment.location
+    previousSegment.status !== "driving"
   );
 }
 
 function formatRemarkLocation(location: string): string {
-  const trimmedLocation = location.trim();
-  if (!trimmedLocation) {
-    return "";
+  return location.trim();
+}
+
+function formatRemarkLabel(segment: LogSegment): string {
+  const location = formatRemarkLocation(segment.location);
+  const detail = formatRemarkDetail(segment.remarks);
+  if (detail && location) {
+    return `${detail} at ${location}`;
   }
-
-  const locationParts = trimmedLocation
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (locationParts.length >= 2) {
-    return locationParts.slice(-2).join(", ");
-  }
-
-  return trimmedLocation;
+  return detail || location;
 }
 
 function formatRemarkDetail(remark: string): string {

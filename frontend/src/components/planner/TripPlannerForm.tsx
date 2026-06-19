@@ -1,8 +1,5 @@
 import { LocationInput } from "@/components/LocationInput";
-import type {
-  FormErrors,
-  PlannerLocations,
-} from "@/components/planner/types";
+import type { FormErrors, PlannerLocations } from "@/components/planner/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { LocationSuggestion } from "@/lib/mapboxGeocoding";
 import type { Coordinates, LocationFieldKey } from "@/types";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, Loader2Icon, RotateCcwIcon } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 
 interface TripPlannerFormProps {
@@ -37,6 +34,7 @@ interface TripPlannerFormProps {
   ) => void;
   onCurrentCycleUsedChange: (value: string) => void;
   onCycleUsedKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  onReset: () => void;
 }
 
 const CYCLE_USED_MIN = 0;
@@ -54,6 +52,7 @@ export function TripPlannerForm({
   onSuggestionSelect,
   onCurrentCycleUsedChange,
   onCycleUsedKeyDown,
+  onReset,
 }: TripPlannerFormProps) {
   const currentCycleUsedError = formErrors.current_cycle_used;
 
@@ -61,7 +60,7 @@ export function TripPlannerForm({
     <Card className="dashboard-card booking-search-card mx-auto max-w-[1320px] rounded-[1.25rem] bg-card py-4 shadow-none ring-1 ring-border/80">
       <CardContent className="px-4 sm:px-5">
         <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate>
-          <FieldGroup className="booking-field-grid grid grid-cols-[repeat(3,minmax(190px,1fr))_minmax(150px,0.62fr)_auto] items-start gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
+          <FieldGroup className="booking-field-grid grid grid-cols-[repeat(3,minmax(190px,1fr))_minmax(150px,0.62fr)_auto_auto] items-start gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
             <LocationInput
               id="current_location"
               label="Current location"
@@ -135,9 +134,7 @@ export function TripPlannerForm({
                 step="any"
                 inputMode="decimal"
                 aria-describedby={
-                  currentCycleUsedError
-                    ? "current-cycle-used-error"
-                    : undefined
+                  currentCycleUsedError ? "current-cycle-used-error" : undefined
                 }
                 aria-invalid={Boolean(currentCycleUsedError) || undefined}
                 required
@@ -146,15 +143,30 @@ export function TripPlannerForm({
                 {currentCycleUsedError}
               </FieldError>
             </Field>
-
             <Button
               type="submit"
               size="lg"
-              className="h-12 min-w-32 rounded-lg px-7 text-base font-semibold max-[1180px]:col-span-2 max-[640px]:col-span-1"
+              className="mt-[1.75rem] h-12 min-w-32 rounded-lg px-7 text-base font-semibold max-[1180px]:col-span-2 max-[640px]:col-span-1 max-[640px]:mt-0"
               disabled={isLoading}
             >
-              {isLoading ? "Planning..." : "Plan"}
-              <ArrowRightIcon data-icon="inline-end" />
+              <span>{isLoading ? "" : "Plan"}</span>
+              {isLoading ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <ArrowRightIcon />
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="mt-[1.75rem] h-12 min-w-32 rounded-lg px-7 text-base font-semibold max-[1180px]:col-span-2 max-[640px]:col-span-1 max-[640px]:mt-0"
+              onClick={onReset}
+              disabled={isLoading}
+            >
+              <RotateCcwIcon />
+              <span>Reset</span>
             </Button>
           </FieldGroup>
 

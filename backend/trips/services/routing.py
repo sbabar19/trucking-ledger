@@ -18,7 +18,7 @@ class RoutingError(Exception):
 def geocode_location(location: str, coordinates: list[float] | None = None) -> dict:
     if _is_coordinate_pair(coordinates):
         return {
-            'location': location,
+            'location': _format_location_text(location),
             'coordinates': [float(coordinates[0]), float(coordinates[1])],
         }
 
@@ -50,7 +50,7 @@ def geocode_location(location: str, coordinates: list[float] | None = None) -> d
         raise RoutingError(f'Mapbox geocoding result was invalid for {location}')
 
     return {
-        'location': location,
+        'location': _format_geocode_feature(features[0]) or _format_location_text(location),
         'coordinates': [float(coordinates[0]), float(coordinates[1])],
     }
 
@@ -223,6 +223,10 @@ def _format_leg(leg: dict) -> dict:
 
 
 def _format_reverse_geocode_feature(feature: dict) -> str | None:
+    return _format_geocode_feature(feature)
+
+
+def _format_geocode_feature(feature: dict) -> str | None:
     properties = feature.get('properties') or {}
     context = properties.get('context') or {}
     place = _context_name(context, 'place') or _context_name(context, 'locality')
@@ -234,7 +238,23 @@ def _format_reverse_geocode_feature(feature: dict) -> str | None:
     if place and region:
         return f'{place}, {region}'
 
-    return properties.get('place_formatted') or properties.get('full_address')
+    fallback = properties.get('place_formatted') or properties.get('full_address')
+    return _format_location_text(fallback) if fallback else None
+
+
+def _format_location_text(location: str) -> str:
+    location_parts = [
+        part.strip()
+        for part in str(location).split(',')
+        if part.strip()
+    ]
+    if location_parts and location_parts[-1].lower() in ('united states', 'usa', 'us'):
+        location_parts = location_parts[:-1]
+
+    if len(location_parts) >= 2:
+        return ', '.join(location_parts[-2:])
+
+    return ', '.join(location_parts) or str(location)
 
 
 def _context_name(context: dict, key: str) -> str | None:
