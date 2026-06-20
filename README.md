@@ -100,7 +100,11 @@ Frontend build-time variables:
 - `VITE_MAPBOX_TOKEN`: public Mapbox token used by the browser for autocomplete and map display
 - `VITE_API_BASE_URL`: keep empty for the default same-origin deployment
 
-For local development, these can be exported in the shell or placed in a Vite env file such as `frontend/.env.local`.
+For local development, copy the frontend example env file and fill in the public Mapbox token:
+
+```bash
+cp frontend/.env.example frontend/.env.local
+```
 
 ```env
 VITE_MAPBOX_TOKEN=your-public-mapbox-token
@@ -157,11 +161,10 @@ npm --prefix frontend install
 5. Add frontend Mapbox env values.
 
 ```bash
-cat > frontend/.env.local <<'EOF'
-VITE_MAPBOX_TOKEN=your-public-mapbox-token
-VITE_API_BASE_URL=
-EOF
+cp frontend/.env.example frontend/.env.local
 ```
+
+Edit `frontend/.env.local` and set `VITE_MAPBOX_TOKEN`.
 
 6. Run the backend.
 
@@ -219,6 +222,21 @@ The production app is same-origin:
 - Built frontend assets are served under `/static/`
 - WhiteNoise can serve static files directly
 - Nginx can sit in front for TLS, compression, buffering, and reverse proxying
+
+In local development, Vite proxies `/api` to Django. That proxy is configured in `frontend/vite.config.ts`:
+
+```ts
+server: {
+  port: 3001,
+  proxy: {
+    '/api': 'http://localhost:8000'
+  }
+}
+```
+
+In production, there is no Vite server. Nginx sends browser requests to Gunicorn/Django, and Django handles both the API and the React fallback. That means `/api/trips/plan/` and `/api/health/` are already backend routes, while non-API paths return the React app.
+
+If you prefer Nginx to serve the React build directly, place the built frontend at `/var/www/trucking-ledger/frontend/dist` and proxy only backend routes like `/api/` to Gunicorn. Because this Vite app builds assets with `/static/` as the base path, map `/static/assets/` to the built `dist/assets` directory.
 
 Build the frontend before starting Django in production:
 
@@ -293,6 +311,8 @@ server {
     }
 }
 ```
+
+This proxies every path to Django. That is intentional for the Docker deployment because the container already contains the built React app and Django can serve the SPA plus `/api`.
 
 Enable and reload:
 
@@ -409,7 +429,7 @@ sudo systemctl status trucking-ledger
 sudo nano /etc/nginx/sites-available/trucking-ledger
 ```
 
-Example config:
+Example config where Django serves the React fallback:
 
 ```nginx
 server {
@@ -435,6 +455,129 @@ server {
     }
 }
 ```
+
+This config lets Nginx serve `/static/` directly and proxies everything else to Django. Django still owns `/api/...` and the React SPA fallback.
+
+If you want to make the API proxy explicit, this equivalent config is also valid:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+
+    client_max_body_size 10m;
+
+    location /static/ {
+        alias /opt/trucking-ledger/backend/staticfiles/;
+        access_log off;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /admin/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+The final `location /` is still needed because Django returns `index.html` for React routes like `/`, `/trip`, or any future frontend route.
+
+For the current deployed Nginx setup, Nginx serves the built frontend directly from `/var/www/trucking-ledger/frontend/dist` and proxies `/api/` to Django/Gunicorn:
+
+```nginx
+upstream trucking_ledger_backend {
+    server 127.0.0.1:8000;
+    keepalive 32;
+}
+
+server {
+    server_name trucking-ledger.example.com;
+
+    root /var/www/trucking-ledger/frontend/dist;
+    index index.html;
+
+    client_max_body_size 20m;
+
+    access_log /var/log/nginx/trucker_ledger.access.log;
+    error_log /var/log/nginx/trucker_ledger.error.log;
+
+    location /api/ {
+        proxy_pass http://trucking_ledger_backend;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+    }
+
+    location /static/assets/ {
+        try_files $uri =404;
+        alias /var/www/trucking-ledger/frontend/dist/assets/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/trucking-ledger.example.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/trucking-ledger.example.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    if ($host = trucking-ledger.example.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen 80;
+    listen [::]:80;
+    server_name trucking-ledger.example.com;
+    return 404; # managed by Certbot
+}
+```
+
+Build the frontend in place with:
+
+```bash
+cd /var/www/trucking-ledger
+VITE_MAPBOX_TOKEN=your-public-mapbox-token VITE_API_BASE_URL= npm run build
+```
+
+In this custom setup, `/api/...` goes to Django, `/static/assets/...` serves Vite JS/CSS from `frontend/dist/assets`, and `/` serves `/var/www/trucking-ledger/frontend/dist/index.html`.
 
 Enable and reload:
 
