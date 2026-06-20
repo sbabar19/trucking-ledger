@@ -1,0 +1,15 @@
+{
+  "name": "trucking-ledger",
+  "private": true,
+  "scripts": {
+    "dev:backend": "backend/venv/bin/python backend/manage.py runserver 8000",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "check:backend": "backend/venv/bin/python backend/manage.py check",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "backend/venv/bin/python backend/manage.py test trips",
+    "test:frontend": "npm --prefix frontend run lint",
+    "lint": "npm --prefix frontend run lint",
+    "build": "npm --prefix frontend run build",
+    "verify": "npm run check:backend && npm run test && npm run build"
+  }
+}

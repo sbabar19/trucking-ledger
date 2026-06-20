@@ -1,0 +1,12 @@
+backend/venv
+frontend/node_modules
+frontend/dist
+backend/staticfiles
+__pycache__/
+.git
+.env
+.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
