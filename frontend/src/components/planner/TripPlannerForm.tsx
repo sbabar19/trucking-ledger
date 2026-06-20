@@ -117,7 +117,7 @@ export function TripPlannerForm({
               data-invalid={Boolean(currentCycleUsedError) || undefined}
             >
               <FieldLabel htmlFor="current-cycle-used">
-                Current cycle used
+                Current cycle used (Hours)
               </FieldLabel>
               <Input
                 id="current-cycle-used"

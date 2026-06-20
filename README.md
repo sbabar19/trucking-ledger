@@ -17,7 +17,7 @@ Backend:
 ```bash
 python3 -m venv backend/venv
 backend/venv/bin/python -m pip install -r backend/requirements.txt
-cd backend && ./venv/bin/python manage.py runserver 8000
+npm run dev:backend
 ```
 
 Frontend:
@@ -25,7 +25,8 @@ Frontend:
 ```bash
 cd frontend
 npm install
-npm run dev
+cd ..
+npm run dev:frontend
 ```
 
 The frontend dev server proxies `/api` to `http://localhost:8000`.
@@ -54,10 +55,11 @@ Frontend build-time variables:
 
 ## Verification
 
-- `cd backend && ./venv/bin/python manage.py check`
-- `cd backend && ./venv/bin/python manage.py test trips`
-- `cd frontend && npm run lint`
-- `cd frontend && npm run build`
+- `npm run check:backend`
+- `npm run test`
+- `npm run lint`
+- `npm run build`
+- `npm run verify`
 - `docker build --build-arg VITE_MAPBOX_TOKEN= -t trucking-ledger .`
 - `docker run --rm -d --name trucking-ledger -p 8000:8000 -e DJANGO_SECRET_KEY=dummy -e DJANGO_DEBUG=False -e DJANGO_ALLOWED_HOSTS=localhost -e PORT=8000 trucking-ledger`
 
