@@ -100,12 +100,16 @@ class HOSTests(TestCase):
         ], current_cycle_used=0)
 
         breaks = [event for event in schedule['events'] if event['remarks'] == 'Required 10-hour break']
+        sleeper_breaks = [event for event in schedule['events'] if event['remarks'] == 'Sleeper berth rest']
         thirty_minute_breaks = [event for event in schedule['events'] if event['remarks'] == 'Required 30-minute break']
         self.assertTrue(breaks)
+        self.assertTrue(sleeper_breaks)
         self.assertTrue(thirty_minute_breaks)
         self.assertEqual(breaks[0]['status'], 'off_duty')
-        self.assertEqual(breaks[0]['end_hour'] - breaks[0]['start_hour'], 10.0)
-        self.assertNotIn('Sleeper berth rest', [event['remarks'] for event in schedule['events']])
+        self.assertEqual(sleeper_breaks[0]['status'], 'sleeper_berth')
+        self.assertEqual(breaks[0]['end_hour'] - breaks[0]['start_hour'], 1.5)
+        self.assertEqual(sleeper_breaks[0]['end_hour'] - sleeper_breaks[0]['start_hour'], 8.5)
+        self.assertEqual(sleeper_breaks[0]['start_hour'], breaks[0]['end_hour'])
 
     def test_trip_over_one_thousand_miles_inserts_fuel_stop(self):
         schedule = build_schedule([

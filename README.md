@@ -74,7 +74,7 @@ curl http://localhost:8000/api/health/
 - `VITE_API_BASE_URL` stays empty unless the app is split again.
 - The map falls back gracefully if `VITE_MAPBOX_TOKEN` is omitted.
 - `MAPBOX_ACCESS_TOKEN` stays backend-only.
-- Required 10-hour rest breaks are modeled as off duty time, not sleeper berth time.
+- Required 10-hour rest breaks are modeled as 1.5 hours off duty followed by 8.5 hours in the sleeper berth.
 
 ## Submission Checklist
 
